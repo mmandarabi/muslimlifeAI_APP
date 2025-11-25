@@ -1,0 +1,25 @@
+name: muslim_life_ai_demo
+description: A High-Fidelity Investor Demo for MuslimLife AI.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  google_fonts: ^6.1.0
+  flutter_lucide: 1.7.0
+  flutter_animate: ^4.5.0
+  glass_kit: ^3.0.0
+  url_launcher: ^6.2.0
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
