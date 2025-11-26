@@ -38,6 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: Stack(
         children: [
           // Background Gradient (Subtle)
@@ -66,29 +67,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
           
           // Main Content
           _screens[_selectedIndex],
-
-          // Bottom Navigation Dock
-          Positioned(
-            bottom: 30,
-            left: 20,
-            right: 20,
-            child: GlassCard(
-              borderRadius: 24,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(LucideIcons.house, 0),
-                  _buildNavItem(LucideIcons.book_open, 1),
-                  _buildNavItem(LucideIcons.users, 2),
-                  _buildNavItem(LucideIcons.trending_up, 3),
-                  _buildNavItem(LucideIcons.compass, 4),
-                  _buildNavItem(LucideIcons.calendar_clock, 5),
-                ],
-              ),
-            ),
-          ),
         ],
+      ),
+      bottomNavigationBar: Container(
+        height: 90,
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+        child: GlassCard(
+          borderRadius: 24,
+          padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(LucideIcons.house, 0),
+              _buildNavItem(LucideIcons.book_open, 1),
+              _buildNavItem(LucideIcons.users, 2),
+              _buildNavItem(LucideIcons.trending_up, 3),
+              _buildNavItem(LucideIcons.compass, 4),
+              _buildNavItem(LucideIcons.calendar_clock, 5),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -100,6 +98,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(8),
+        width: 50,
+        height: 50,
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
           shape: BoxShape.circle,

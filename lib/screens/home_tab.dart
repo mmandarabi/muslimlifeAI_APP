@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:muslim_life_ai_demo/screens/chat_screen.dart';
+import 'package:muslim_life_ai_demo/screens/login_screen.dart';
 import 'package:muslim_life_ai_demo/screens/mission_screen.dart';
 import 'package:muslim_life_ai_demo/screens/prayer_times_screen.dart';
 import 'package:muslim_life_ai_demo/screens/qibla_screen.dart';
@@ -41,7 +42,25 @@ class HomeTab extends StatelessWidget {
                   ),
                 ],
               ),
-              const Icon(LucideIcons.shield_check, color: AppColors.primary),
+              Row(
+                children: [
+                  const Icon(LucideIcons.shield_check, color: AppColors.primary),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: const Icon(LucideIcons.log_out, color: Colors.white54),
+                    tooltip: "Log Out",
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Logging out...")),
+                      );
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 30),
@@ -61,26 +80,29 @@ class HomeTab extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Maghrib   مغرب",
-                            style: Theme.of(context).textTheme.displayMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(LucideIcons.map_pin,
-                                  size: 16, color: Colors.white54),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Belmont, VA",
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Maghrib   مغرب",
+                              style: Theme.of(context).textTheme.displayMedium,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(LucideIcons.map_pin,
+                                    size: 16, color: Colors.white54),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Belmont, VA",
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                       GestureDetector(
                         onTap: () {
@@ -145,7 +167,7 @@ class HomeTab extends StatelessWidget {
               style: TextButton.styleFrom(foregroundColor: Colors.white54),
             ),
           ),
-          const SizedBox(height: 80), // Space for bottom nav
+          const SizedBox(height: 100), // Space for bottom nav
         ],
       ),
     );

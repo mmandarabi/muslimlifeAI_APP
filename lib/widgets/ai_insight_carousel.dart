@@ -52,133 +52,48 @@ class _AIInsightCarouselState extends State<AIInsightCarousel> {
     },
   ];
 
+  void _nextPage() {
+    if (_currentPage < _insights.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _previousPage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         SizedBox(
-          height: 220, // Adjust height as needed
-          child: Stack(
-            children: [
-              PageView.builder(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentPage = index;
-                  });
-                },
-                itemCount: _insights.length,
-                itemBuilder: (context, index) {
-                  final insight = _insights[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4), // Spacing between cards if needed, or keep flush
-                    child: GlassCard(
-                      border: Border.all(
-                        color: AppColors.primary.withOpacity(0.5),
-                        width: 1.5,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(LucideIcons.sparkles,
-                                    color: AppColors.primary, size: 18),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "AI INSIGHT",
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                        color: AppColors.primary,
-                                        letterSpacing: 1.5,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
-                                const Spacer(),
-                                Icon(insight['icon'], color: Colors.white54, size: 18),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              insight['title'],
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Expanded(
-                              child: Text(
-                                insight['text'],
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Colors.white70,
-                                      height: 1.4,
-                                    ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () {},
-                                    style: OutlinedButton.styleFrom(
-                                      side: BorderSide(color: Colors.white.withOpacity(0.2)),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                    ),
-                                    child: Text(insight['secondaryButton']),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: FilledButton(
-                                    onPressed: () {},
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: Colors.black,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                    ),
-                                    child: Text(insight['primaryButton']),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              if (_currentPage > 0)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: const Icon(LucideIcons.chevron_left, color: Colors.white54),
-                    onPressed: () {
-                      _pageController.previousPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                  ),
+          height: 330, // Increased height to accommodate wrapped text comfortably
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemCount: _insights.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: AIInsightCard(
+                  insight: _insights[index],
+                  onNext: index < _insights.length - 1 ? _nextPage : null,
+                  onPrevious: index > 0 ? _previousPage : null,
                 ),
-              if (_currentPage < _insights.length - 1)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: IconButton(
-                    icon: const Icon(LucideIcons.chevron_right, color: Colors.white54),
-                    onPressed: () {
-                      _pageController.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                  ),
-                ),
-            ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 16),
@@ -201,6 +116,142 @@ class _AIInsightCarouselState extends State<AIInsightCarousel> {
           }),
         ),
       ],
+    );
+  }
+}
+
+class AIInsightCard extends StatelessWidget {
+  final Map<String, dynamic> insight;
+  final VoidCallback? onNext;
+  final VoidCallback? onPrevious;
+
+  const AIInsightCard({
+    super.key,
+    required this.insight,
+    this.onNext,
+    this.onPrevious,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      border: Border.all(
+        color: AppColors.primary.withOpacity(0.5),
+        width: 1.5,
+      ),
+      child: Stack(
+        children: [
+          // Layer 1: Content
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Row
+                Row(
+                  children: [
+                    const Icon(LucideIcons.sparkles,
+                        color: AppColors.primary, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      "AI INSIGHT",
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppColors.primary,
+                            letterSpacing: 1.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const Spacer(),
+                    Icon(insight['icon'], color: Colors.white54, size: 18),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Title
+                Text(
+                  insight['title'],
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 8),
+
+                // Body Text
+                Text(
+                  insight['text'],
+                  maxLines: 10,
+                  overflow: TextOverflow.visible,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white70,
+                        height: 1.5,
+                        fontSize: 14,
+                      ),
+                ),
+                
+                const Spacer(),
+                
+                // Buttons Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {},
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(insight['secondaryButton']),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () {},
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(insight['primaryButton']),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Layer 2: Left Arrow
+          if (onPrevious != null)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton(
+                  icon: const Icon(LucideIcons.chevron_left, color: Colors.white54),
+                  onPressed: onPrevious,
+                ),
+              ),
+            ),
+
+          // Layer 3: Right Arrow
+          if (onNext != null)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton(
+                  icon: const Icon(LucideIcons.chevron_right, color: Colors.white54),
+                  onPressed: onNext,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

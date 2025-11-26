@@ -166,53 +166,26 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
           // Header
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _selectedTabIndex == 1 ? "Hadith" : "Quran",
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    if (_selectedTabIndex == 0)
-                      IconButton(
-                        onPressed: () => _showReciterSelector(context),
-                        icon: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(LucideIcons.mic, color: Colors.white),
-                        ),
+                Text(
+                  _selectedTabIndex == 1 ? "Hadith" : "Quran",
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
-                  ],
                 ),
-                const SizedBox(height: 16),
-                // Search Bar (Visual Only) - Only show for Quran tab as Hadith has its own
                 if (_selectedTabIndex == 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.search, color: Colors.white38, size: 20),
-                        const SizedBox(width: 12),
-                        Text(
-                          "Search Surah, Juz, or Ayah...",
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white38,
-                              ),
-                        ),
-                      ],
+                  IconButton(
+                    onPressed: () => _showReciterSelector(context),
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(LucideIcons.mic, color: Colors.white),
                     ),
                   ),
               ],
@@ -234,6 +207,34 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
             ),
           ),
           const SizedBox(height: 20),
+
+          // Search Bar (Moved here)
+          if (_selectedTabIndex == 0) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(LucideIcons.search, color: Colors.white38, size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      "Search Surah, Juz, or Ayah...",
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white38,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
 
           // Content
           Expanded(

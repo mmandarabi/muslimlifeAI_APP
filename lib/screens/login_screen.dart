@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
   String? _errorMessage;
 
   void _handleLogin() async {
@@ -137,6 +138,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       hint: "Password",
                       icon: LucideIcons.lock,
                       isPassword: true,
+                      isPasswordVisible: _isPasswordVisible,
+                      onTogglePassword: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
                     ),
 
                     // Error Message
@@ -227,15 +234,27 @@ class _LoginScreenState extends State<LoginScreen> {
     required String hint,
     required IconData icon,
     bool isPassword = false,
+    bool isPasswordVisible = false,
+    VoidCallback? onTogglePassword,
   }) {
     return TextField(
       controller: controller,
-      obscureText: isPassword,
+      obscureText: isPassword ? !isPasswordVisible : false,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.white38),
         prefixIcon: Icon(icon, color: Colors.white54, size: 20),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  isPasswordVisible ? LucideIcons.eye_off : LucideIcons.eye,
+                  color: Colors.white54,
+                  size: 20,
+                ),
+                onPressed: onTogglePassword,
+              )
+            : null,
         filled: true,
         fillColor: Colors.black.withOpacity(0.3),
         border: OutlineInputBorder(
