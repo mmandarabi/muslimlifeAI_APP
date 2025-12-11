@@ -1,20 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:muslim_life_ai_demo/models/prayer_times.dart';
+import 'package:muslim_life_ai_demo/services/prayer_service.dart';
 import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
 
-class PrayerTimesScreen extends StatelessWidget {
+class PrayerTimesScreen extends StatefulWidget {
   const PrayerTimesScreen({super.key});
 
   @override
+  State<PrayerTimesScreen> createState() => _PrayerTimesScreenState();
+}
+
+class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
+  PrayerTimes? _prayerTimes;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrayerTimes();
+  }
+
+  Future<void> _loadPrayerTimes() async {
+    try {
+      final data = await PrayerService().fetchPrayerTimes();
+      if (mounted) {
+        setState(() {
+          _prayerTimes = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Unavailable";
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0B0C0E),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0B0C0E),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: const BackButton(color: Colors.white),
+        ),
+        body: Center(
+            child: Text(_errorMessage!,
+                style: const TextStyle(color: Colors.white54))),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B0C0E),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Column(
           children: [
             Row(
@@ -23,7 +81,7 @@ class PrayerTimesScreen extends StatelessWidget {
                 const Icon(LucideIcons.map_pin, size: 14, color: AppColors.primary),
                 const SizedBox(width: 6),
                 Text(
-                  "Belmont, VA",
+                  "Belmont, VA", // Location is still placeholder per instructions
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -33,7 +91,7 @@ class PrayerTimesScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              "27 Jumada al-Awwal 1447 AH",
+              "27 Jumada al-Awwal 1447 AH", // Date placeholder for now
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: Colors.white54,
                   ),
@@ -75,7 +133,7 @@ class PrayerTimesScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         Text(
-                          "Maghrib",
+                          _prayerTimes!.nextPrayer,
                           style: Theme.of(context).textTheme.displayMedium?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -83,7 +141,7 @@ class PrayerTimesScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          "7:17 PM",
+                          _prayerTimes!.nextPrayerTime,
                           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                 color: Colors.white,
                               ),
@@ -98,7 +156,7 @@ class PrayerTimesScreen extends StatelessWidget {
                             border: Border.all(color: AppColors.primary),
                           ),
                           child: Text(
-                            "Starts in 1h 48m",
+                            "Incoming Prayer",
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.bold,
@@ -112,15 +170,15 @@ class PrayerTimesScreen extends StatelessWidget {
                   const SizedBox(height: 30),
 
                   // Daily Schedule List
-                  _buildPrayerRow(context, "Fajr", "الفجر", "5:44 AM"),
+                  _buildPrayerRow(context, "Fajr", "الفجر", _prayerTimes!.fajr, isNext: _prayerTimes!.nextPrayer == "Fajr"),
                   const SizedBox(height: 12),
-                  _buildPrayerRow(context, "Dhuhr", "الظهر", "1:13 PM"),
+                  _buildPrayerRow(context, "Dhuhr", "الظهر", _prayerTimes!.dhuhr, isNext: _prayerTimes!.nextPrayer == "Dhuhr"),
                   const SizedBox(height: 12),
-                  _buildPrayerRow(context, "Asr", "العصر", "4:36 PM"),
+                  _buildPrayerRow(context, "Asr", "العصر", _prayerTimes!.asr, isNext: _prayerTimes!.nextPrayer == "Asr"),
                   const SizedBox(height: 12),
-                  _buildPrayerRow(context, "Maghrib", "المغرب", "7:17 PM", isNext: true),
+                  _buildPrayerRow(context, "Maghrib", "المغرب", _prayerTimes!.maghrib, isNext: _prayerTimes!.nextPrayer == "Maghrib"),
                   const SizedBox(height: 12),
-                  _buildPrayerRow(context, "Isha", "العشاء", "8:31 PM"),
+                  _buildPrayerRow(context, "Isha", "العشاء", _prayerTimes!.isha, isNext: _prayerTimes!.nextPrayer == "Isha"),
 
                   const SizedBox(height: 16),
                   Center(
@@ -169,7 +227,7 @@ class PrayerTimesScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                "Maghrib is in 20 mins. Remind me 5 mins before?",
+                                "${_prayerTimes!.nextPrayer} is next. Remind me 5 mins before?",
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Colors.white70,
                                     ),

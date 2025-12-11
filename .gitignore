@@ -1,45 +1,86 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
+# -------------------------
+# Flutter / Dart
+# -------------------------
+.dart_tool/
+.packages
 .buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+.pub-cache/
+.pub/
+build/
+coverage/
+**/doc/api/
 
-# IntelliJ related
+# Flutter generated
+**/ios/Flutter/.last_build_id
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+macos/Flutter/ephemeral/
+linux/ephemeral/
+windows/ephemeral/
+
+# Plugins
+.flutter-plugins-dependencies
+
+# -------------------------
+# Android
+# -------------------------
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# Signing keys
+*.keystore
+*.jks
+*.p12
+
+# Google Services
+android/app/google-services.json
+
+# -------------------------
+# iOS
+# -------------------------
+ios/Pods/
+ios/Runner/GoogleService-Info.plist
+
+# -------------------------
+# Firebase / Secrets
+# -------------------------
+firebase-debug.log
+firebase.json
+firestore.rules
+firestore.indexes.json
+
+# Do NOT commit environment files
+.env
+*.env
+
+# -------------------------
+# Node / Cloud Functions
+# -------------------------
+functions/node_modules/
+functions/.env
+functions/package-lock.json
+
+# -------------------------
+# IDE files
+# -------------------------
+.idea/
 *.iml
 *.ipr
 *.iws
-.idea/
+.vscode/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# -------------------------
+# Misc
+# -------------------------
+*.log
+*.class
+*.pyc
+*.swp
+.DS_Store
+.svn/
+.swiftpm/
+migrate_working_dir/

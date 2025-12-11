@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:muslim_life_ai_demo/screens/dashboard_screen.dart';
@@ -26,27 +27,73 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 1500));
+    try {
+      // Try to sign in
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _usernameController.text.trim(),
+        password: _passwordController.text,
+      );
 
-    if (_usernameController.text == 'masoud' &&
-        _passwordController.text == 'masoud@123') {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) =>
                 const DashboardScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
           ),
         );
       }
-    } else {
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
+        // Auto-signup logic for new users (if desired by requirements)
+        // Attempt to create user since they don't exist
+        try {
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+            email: _usernameController.text.trim(),
+            password: _passwordController.text,
+          );
+          if (mounted) {
+             Navigator.of(context).pushReplacement(
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    const DashboardScreen(),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+              ),
+            );
+          }
+        } on FirebaseAuthException catch (signupError) {
+             if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = signupError.message ?? "Registration failed.";
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Registration Error: ${signupError.message}")),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = e.message ?? "Login failed.";
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text("Login Error: ${e.message}")),
+          );
+        }
+      }
+    } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = "Invalid credentials. Access denied.";
+          _errorMessage = "An unexpected error occurred.";
         });
       }
     }

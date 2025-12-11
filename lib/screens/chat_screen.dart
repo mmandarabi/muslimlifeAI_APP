@@ -1,9 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:muslim_life_ai_demo/services/ai_chat_service.dart';
 import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
-import 'package:muslim_life_ai_demo/widgets/grid_painter.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -15,42 +15,48 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<Map<String, dynamic>> _messages = [];
-  bool _isTyping = false;
+  final AiService _chatService = AiService();
+  
+  // Local-only message history (Phase 1)
+  final List<Map<String, String>> _messages = [
+    {
+      "role": "assistant", 
+      "text": "Assalamu Alaykum. I am Noor, your AI assistant. How can I help you today?"
+    }
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    // Initial greeting
-    _messages.add({
-      "role": "ai",
-      "text": "As-salamu alaykum. I am your MuslimLife AI assistant. How can I help you with your journey today?",
-    });
-  }
+  bool _isLoading = false;
 
-  void _handleSubmitted(String text) {
-    if (text.trim().isEmpty) return;
+  void _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
 
     setState(() {
       _messages.add({"role": "user", "text": text});
-      _isTyping = true;
+      _isLoading = true;
     });
     _controller.clear();
     _scrollToBottom();
 
-    // Wizard of Oz Logic
-    Timer(const Duration(seconds: 2), () {
+    // Call Cloud Function
+    try {
+      final reply = await _chatService.sendMessage(text);
       if (mounted) {
         setState(() {
-          _isTyping = false;
-          _messages.add({
-            "role": "ai",
-            "text": "According to the Hanafi school (and general consensus for travelers), if you are traveling more than 48 miles (approx. 77 km) from your city limits, you are considered a Musafir (traveler).\n\nYou should shorten your 4-rak'at prayers (Dhuhr, Asr, Isha) to 2 rak'ats. This is known as Qasr. Maghrib remains 3 rak'ats, and Fajr remains 2.",
-          });
+          _messages.add({"role": "assistant", "text": reply});
+          _isLoading = false;
         });
         _scrollToBottom();
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add({"role": "assistant", "text": "Error: $e"});
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -68,176 +74,114 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0B0C0E),
       appBar: AppBar(
+        title: Text("Noor AI", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text("MuslimLife AI"),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(LucideIcons.arrow_left, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          // Background
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.center,
-                  radius: 1.5,
-                  colors: [
-                    Color(0xFF064E3B), // Dark Emerald
-                    AppColors.background,
-                  ],
-                  stops: [0.0, 0.6],
-                ),
-              ),
-            ),
-          ),
-          // Grid
-          Positioned.fill(
-            child: CustomPaint(
-              painter: GridPainter(opacity: 0.03, spacing: 40),
-            ),
-          ),
-
-          SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(20),
-                    itemCount: _messages.length + (_isTyping ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == _messages.length) {
-                        return _buildTypingIndicator();
-                      }
-                      final msg = _messages[index];
-                      final isUser = msg["role"] == "user";
-                      return _buildMessageBubble(msg["text"], isUser);
-                    },
-                  ),
-                ),
-                _buildInputArea(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageBubble(String text, bool isUser) {
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-        child: GlassCard(
-          borderRadius: 20,
-          padding: const EdgeInsets.all(16),
-          // Different styling for user vs AI
-          border: isUser 
-              ? Border.all(color: AppColors.primary.withOpacity(0.3))
-              : Border.all(color: Colors.white.withOpacity(0.1)),
-          opacity: isUser ? 0.1 : 0.05,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!isUser) ...[
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(LucideIcons.sparkles, size: 14, color: AppColors.primary),
-                    const SizedBox(width: 6),
-                    Text(
-                      "AI ASSISTANT",
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                          ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
-              Text(
-                text,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.white,
-                      height: 1.4,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTypingIndicator() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        child: GlassCard(
-          borderRadius: 20,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                "Thinking...",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white70,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputArea() {
-    return GlassCard(
-      borderRadius: 0,
-      opacity: 0.1,
-      padding: const EdgeInsets.all(16),
-      child: Row(
+      body: Column(
         children: [
           Expanded(
-            child: TextField(
-              controller: _controller,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: "Ask about rulings, prayer times...",
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              onSubmitted: _handleSubmitted,
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[index];
+                final isUser = msg["role"] == "user";
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!isUser) ...[
+                        const CircleAvatar(
+                          backgroundColor: AppColors.primary,
+                          radius: 16,
+                          child: Icon(LucideIcons.bot, size: 18, color: Colors.white),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isUser ? AppColors.primary.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(16),
+                              topRight: const Radius.circular(16),
+                              bottomLeft: isUser ? const Radius.circular(16) : Radius.zero,
+                              bottomRight: isUser ? Radius.zero : const Radius.circular(16),
+                            ),
+                            border: Border.all(
+                              color: isUser ? AppColors.primary.withOpacity(0.5) : Colors.white10,
+                            ),
+                          ),
+                          child: Text(
+                            msg["text"] ?? "",
+                            style: GoogleFonts.inter(
+                               color: Colors.white,
+                               fontSize: 14,
+                               height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                       if (isUser) ...[
+                        const SizedBox(width: 8),
+                        CircleAvatar(
+                          backgroundColor: Colors.grey[800],
+                          radius: 16,
+                          child: const Icon(LucideIcons.user, size: 18, color: Colors.white),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: () => _handleSubmitted(_controller.text),
-            icon: const Icon(LucideIcons.send, color: AppColors.primary),
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.primary.withOpacity(0.1),
+          
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: SizedBox(
+                height: 20, 
+                width: 20, 
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)
+              ),
+            ),
+
+          GlassCard(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: "Ask Noor...",
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _sendMessage,
+                  icon: const Icon(LucideIcons.send, color: AppColors.primary),
+                ),
+              ],
             ),
           ),
         ],

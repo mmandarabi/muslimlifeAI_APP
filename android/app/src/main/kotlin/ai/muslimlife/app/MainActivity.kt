@@ -1,4 +1,4 @@
-package com.example.muslim_life_ai_demo
+package ai.muslimlife.app
 
 import io.flutter.embedding.android.FlutterActivity
 

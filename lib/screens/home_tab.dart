@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:muslim_life_ai_demo/screens/chat_screen.dart';
+import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:muslim_life_ai_demo/models/prayer_times.dart';
+import 'package:muslim_life_ai_demo/services/prayer_service.dart';
 import 'package:muslim_life_ai_demo/screens/login_screen.dart';
 import 'package:muslim_life_ai_demo/screens/mission_screen.dart';
 import 'package:muslim_life_ai_demo/screens/prayer_times_screen.dart';
@@ -8,9 +11,44 @@ import 'package:muslim_life_ai_demo/screens/qibla_screen.dart';
 import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:muslim_life_ai_demo/widgets/ai_insight_carousel.dart';
 import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  PrayerTimes? _prayerTimes;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrayerTimes();
+  }
+
+  Future<void> _loadPrayerTimes() async {
+    try {
+      final data = await PrayerService().fetchPrayerTimes();
+      if (mounted) {
+        setState(() {
+          _prayerTimes = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Unavailable";
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,14 +87,17 @@ class HomeTab extends StatelessWidget {
                   IconButton(
                     icon: const Icon(LucideIcons.log_out, color: Colors.white54),
                     tooltip: "Log Out",
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Logging out...")),
-                      );
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      );
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Logging out...")),
+                        );
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                        );
+                      }
                     },
                   ),
                 ],
@@ -65,85 +106,76 @@ class HomeTab extends StatelessWidget {
           ),
           const SizedBox(height: 30),
 
-          // Hero Card (Prayer Time)
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const PrayerTimesScreen()),
-              );
-            },
-            child: GlassCard(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Dual Header Row (Now vs Next)
+          Row(
+            children: [
+              // BOX 1: CURRENT TIME
+              Expanded(
+                child: GlassCard(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Maghrib   مغرب",
-                              style: Theme.of(context).textTheme.displayMedium,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(LucideIcons.map_pin,
-                                    size: 16, color: Colors.white54),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "Belmont, VA",
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                      Text(
+                        "Now",
+                        style: GoogleFonts.poppins(color: Colors.white54, fontSize: 14),
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const QiblaScreen()),
+                      const SizedBox(height: 8),
+                      StreamBuilder(
+                        stream: Stream.periodic(const Duration(seconds: 1)),
+                        builder: (context, snapshot) {
+                          return Text(
+                            DateFormat('hh:mm a').format(DateTime.now()),
+                            style: GoogleFonts.poppins(
+                              fontSize: 24, // Adjusted for fit
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           );
                         },
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(LucideIcons.moon,
-                              color: AppColors.primary, size: 32),
-                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  // Time countdown or similar could go here
-                  LinearProgressIndicator(
-                    value: 0.7,
-                    backgroundColor: Colors.white10,
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      "-24m until Isha",
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.primary,
-                          ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+
+              const SizedBox(width: 12), // Spacing
+
+              // BOX 2: NEXT PRAYER
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PrayerTimesScreen()),
+                    );
+                  },
+                  child: GlassCard(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: _isLoading
+                        ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Next: ${_prayerTimes?.nextPrayer ?? '--'}",
+                                style: GoogleFonts.poppins(color: AppColors.primary, fontSize: 14),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _prayerTimes?.nextPrayerTime ?? "--:--",
+                                style: GoogleFonts.poppins(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            ],
           ),
 
           const SizedBox(height: 20),
@@ -172,4 +204,16 @@ class HomeTab extends StatelessWidget {
       ),
     );
   }
+
+  String _getArabicName(String englishName) {
+    switch (englishName.toLowerCase()) {
+      case 'fajr': return 'الفجر';
+      case 'dhuhr': return 'الظهر';
+      case 'asr': return 'العصر';
+      case 'maghrib': return 'المغرب';
+      case 'isha': return 'العشاء';
+      default: return '';
+    }
+  }
 }
+

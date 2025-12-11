@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:muslim_life_ai_demo/screens/analytics_screen.dart';
+import 'package:muslim_life_ai_demo/screens/chat_screen.dart';
 import 'package:muslim_life_ai_demo/screens/community_screen.dart';
 import 'package:muslim_life_ai_demo/screens/home_tab.dart';
 import 'package:muslim_life_ai_demo/screens/prayer_times_screen.dart';
@@ -81,6 +82,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _buildNavItem(LucideIcons.house, 0),
               _buildNavItem(LucideIcons.book_open, 1),
               _buildNavItem(LucideIcons.users, 2),
+              // Special Chat Button
+              GestureDetector(
+                onTap: () {
+                   Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatScreen()));
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(LucideIcons.message_circle, color: AppColors.primary, size: 24),
+                ),
+              ),
               _buildNavItem(LucideIcons.trending_up, 3),
               _buildNavItem(LucideIcons.compass, 4),
               _buildNavItem(LucideIcons.calendar_clock, 5),
