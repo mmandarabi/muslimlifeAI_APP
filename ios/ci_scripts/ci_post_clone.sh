@@ -1,25 +1,24 @@
 #!/bin/bash
 set -e
 
-echo "▶️ Xcode Cloud: preparing Flutter iOS build"
+echo "▶️ Xcode Cloud: Flutter setup"
 
-# Go to repo root
 cd "$CI_PRIMARY_REPOSITORY_PATH"
 
-# Install Flutter (minimal, stable)
-echo "⬇️ Installing Flutter SDK"
-git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
-export PATH="$HOME/flutter/bin:$PATH"
+FLUTTER_HOME="$HOME/flutter"
 
-# Verify Flutter
-flutter --version
+if [ ! -d "$FLUTTER_HOME" ]; then
+  echo "⬇️ Cloning Flutter SDK"
+  git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
+fi
 
-# Get Dart dependencies
-flutter pub get
+echo "✅ Flutter directory exists"
 
-# Generate iOS config files (NO build)
-flutter build ios --config-only
+# ALWAYS call Flutter via absolute path
+"$FLUTTER_HOME/bin/flutter" --version
+"$FLUTTER_HOME/bin/flutter" pub get
+"$FLUTTER_HOME/bin/flutter" build ios --config-only
 
-# Install CocoaPods
 cd ios
 pod install
+
