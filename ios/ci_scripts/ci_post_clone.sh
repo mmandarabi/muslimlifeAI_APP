@@ -3,13 +3,21 @@ set -e
 
 echo "▶️ Xcode Cloud: preparing Flutter iOS build"
 
-# Ensure Flutter is available (already installed on Xcode Cloud runners)
+# Go to repo root
+cd "$CI_PRIMARY_REPOSITORY_PATH"
+
+# Install Flutter (minimal, stable)
+echo "⬇️ Installing Flutter SDK"
+git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+export PATH="$HOME/flutter/bin:$PATH"
+
+# Verify Flutter
 flutter --version
 
-# Get Dart deps
+# Get Dart dependencies
 flutter pub get
 
-# Generate iOS config files ONLY (no build)
+# Generate iOS config files (NO build)
 flutter build ios --config-only
 
 # Install CocoaPods
