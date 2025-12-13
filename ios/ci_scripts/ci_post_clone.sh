@@ -1,14 +1,12 @@
 #!/bin/sh
-
-# Fail on any error
 set -e
 
-# 1. Install Flutter (Essential for Xcode Cloud)
+# 1. Install Flutter
 echo "📦 Installing Flutter..."
 git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
 export PATH="$PATH:$HOME/flutter/bin"
 
-# 2. THE FIX: Precache iOS artifacts (This matches your Codemagic script)
+# 2. Run Precache (The Fix)
 echo "✨ Running Precache..."
 flutter precache --ios
 
@@ -16,7 +14,7 @@ flutter precache --ios
 echo "📦 Installing Dependencies..."
 flutter pub get
 
-# 4. Install CocoaPods and run it
+# 4. Install Pods
 echo "☕️ Installing Pods..."
 HOMEBREW_NO_AUTO_UPDATE=1 brew install cocoapods
 cd ios
