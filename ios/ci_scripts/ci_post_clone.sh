@@ -1,33 +1,34 @@
 #!/bin/bash
 set -e  # Fail on any error
-set -x  # Print every command (so we can see exactly what happens)
+set -x  # Print all commands for debugging
 
-# 1. FIX LOCALES (CRITICAL for CocoaPods)
-# Xcode Cloud often lacks these, causing 'pod install' to crash with Code 1
+# 1. FIX LOCALES (Required for CocoaPods)
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-# 2. DEFINE PATHS
+# 2. NAVIGATE TO REPO ROOT (The Missing Fix)
+# Xcode Cloud starts in ios/ci_scripts. We need to go up two levels to the root.
+cd "$(dirname "$0")/../.."
+echo "📍 Current working directory: $(pwd)"
+
+# 3. DEFINE PATHS
 FLUTTER_HOME="$HOME/flutter"
 FLUTTER_BIN="$FLUTTER_HOME/bin/flutter"
 
-echo "▶️ Starting Bulletproof Setup..."
+echo "▶️ Starting Setup..."
 
-# 3. CLEAN START
-# Remove any existing Flutter folder to prevent git conflicts from cached builds
+# 4. CLEAN & INSTALL FLUTTER
 rm -rf "$FLUTTER_HOME"
-
 echo "⬇️ Cloning Flutter SDK..."
 git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
 
-# 4. RUN FLUTTER
+# 5. RUN FLUTTER COMMANDS (From Root)
 echo "✅ Flutter binary: $FLUTTER_BIN"
-# Disable analytics to prevent hanging on prompt
 "$FLUTTER_BIN" config --no-analytics
 "$FLUTTER_BIN" pub get
 "$FLUTTER_BIN" build ios --config-only
 
-# 5. POD INSTALL
+# 6. INSTALL PODS (Now 'cd ios' will work)
 echo "☕️ Installing CocoaPods..."
 cd ios
 pod install
