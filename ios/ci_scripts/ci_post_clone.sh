@@ -1,29 +1,26 @@
 #!/bin/sh
 
-# Fail this script if any subcommand fails.
+# Fail on any error
 set -e
 
-# The default execution directory of this script is the ci_scripts directory.
-# We need to go up to the root of the Flutter project.
-cd $CI_PRIMARY_REPOSITORY_PATH
-
+# 1. Install Flutter (Essential for Xcode Cloud)
 echo "📦 Installing Flutter..."
-# Clone Flutter stable channel
 git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
 export PATH="$PATH:$HOME/flutter/bin"
 
-echo "🔍 Checking Flutter version..."
-flutter --version
+# 2. THE FIX: Precache iOS artifacts (This matches your Codemagic script)
+echo "✨ Running Precache..."
+flutter precache --ios
 
-echo "📥 Installing Flutter Dependencies..."
+# 3. Install Dependencies
+echo "📦 Installing Dependencies..."
 flutter pub get
 
-echo "☕️ Installing CocoaPods..."
-# Install CocoaPods using Homebrew (safest way in Xcode Cloud)
+# 4. Install CocoaPods and run it
+echo "☕️ Installing Pods..."
 HOMEBREW_NO_AUTO_UPDATE=1 brew install cocoapods
-
-echo "🥥 Running Pod Install..."
 cd ios
 pod install
+cd ..
 
-echo "✅ Pre-build setup complete!"
+echo "✅ Setup Complete"
