@@ -70,6 +70,10 @@ class _AIInsightCarouselState extends State<AIInsightCarousel> {
               },
              ];
              _isLoading = false;
+          } else {
+             // Fallback if API returns error or unknown type
+             // Throwing here will be caught by the catch block below, which sets up the fallback UI
+             throw Exception("Invalid AI Response: ${insightData['message']}");
           }
         });
       }

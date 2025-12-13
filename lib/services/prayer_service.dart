@@ -44,14 +44,14 @@ class PrayerService {
       final Uri uri = Uri.parse('$_endpointUrl?lat=$lat&lon=$lon&method=2');
       debugPrint("PrayerService: Calling API: $uri");
 
-      final response = await http.get(uri).timeout(const Duration(seconds: 10)); // Timeout added
+      // Increased timeout to 30s to handle Cold Starts & Slow Networks
+      final response = await http.get(uri).timeout(const Duration(seconds: 30));
       
       debugPrint("PrayerService: Response Status: ${response.statusCode}");
-      // debugPrint("PrayerService: Response Body: ${response.body}");
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        _cachedData = PrayerTimes.fromJson(data);
+        // Offload JSON parsing to an isolate to prevent UI jank
+        _cachedData = await compute(_parsePrayerTimes, response.body);
         _lastFetchTime = DateTime.now();
         return _cachedData!;
       } else {
@@ -60,6 +60,10 @@ class PrayerService {
       }
     } catch (e) {
       debugPrint("PrayerService: Error - $e");
+      // If it's a timeout, give a more specific message
+      if (e.toString().contains('TimeoutException')) {
+         throw Exception('Connection timed out. Please check your internet or try again.');
+      }
       throw Exception('Error fetching prayer times: $e');
     }
   }
@@ -127,3 +131,10 @@ class PrayerService {
     }
   }
 }
+
+/// Top-level function for isolate JSON parsing
+PrayerTimes _parsePrayerTimes(String responseBody) {
+  final Map<String, dynamic> data = json.decode(responseBody);
+  return PrayerTimes.fromJson(data);
+}
+

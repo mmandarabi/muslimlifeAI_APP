@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
   // Toggle this for Production vs Development
-  static const bool isProduction = false; 
+  static const bool isProduction = true; 
 
   // --- Configuration ---
   static const String _emulatorProjectId = "muslimlifeai-fcb93";

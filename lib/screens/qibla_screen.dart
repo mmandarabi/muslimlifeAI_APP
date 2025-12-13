@@ -46,31 +46,45 @@ class _QiblaScreenState extends State<QiblaScreen> {
     }
 
     try {
-      // 1. Request Permission
-      final status = await Permission.location.request();
-      if (!status.isGranted) {
-        setState(() {
-          _error = "Location permission required";
+      // 1. Check Location Service
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+         setState(() {
+          _error = "Location services are disabled. Please enable them.";
           _isLoading = false;
         });
         return;
       }
 
-      // 2. Get Location
+      // 2. Check/Request Permission (Using Geolocator to match PrayerService)
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _error = "Location permission is required to find Qibla.";
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _error = "Location permission is permanently denied. Please enable in Settings.";
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // 3. Get Location
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.medium, // High accuracy not strictly needed for Qibla rough direction
       );
       
-      // 3. Calculate Qibla
+      // 4. Calculate Qibla
       final coordinates = Coordinates(position.latitude, position.longitude);
       final qibla = Qibla(coordinates);
-      
-      // 4. Calculate Distance (Harversine or manual)
-      // Adhan library implementation of Qibla provides direction.
-      // We can calculate distance manually roughly if needed, or just display coordinates.
-      // Let's us a rough estimate for display if library doesn't expose it directly.
-      // Actually Adhan generic calculation:
-      // Distance from Current to Kaaba (21.4225° N, 39.8262° E)
       
       setState(() {
         _currentPosition = position;
@@ -78,6 +92,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
         _distanceInKm = _calculateDistance(position.latitude, position.longitude);
         _hasPermissions = true;
         _isLoading = false;
+        _error = null; // Clear any previous error
       });
 
     } catch (e) {
