@@ -1,24 +1,33 @@
 #!/bin/bash
 set -e
 
-echo "▶️ Xcode Cloud: Flutter setup"
-
-cd "$CI_PRIMARY_REPOSITORY_PATH"
-
+# 1. Define the absolute path where we want Flutter
 FLUTTER_HOME="$HOME/flutter"
+FLUTTER_BIN="$FLUTTER_HOME/bin/flutter"
 
+echo "▶️ Starting Xcode Cloud Setup..."
+
+# 2. Clone Flutter if it doesn't exist
 if [ ! -d "$FLUTTER_HOME" ]; then
-  echo "⬇️ Cloning Flutter SDK"
+  echo "⬇️ Cloning Flutter SDK..."
   git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
+else
+  echo "✅ Flutter SDK already exists at $FLUTTER_HOME"
 fi
 
-echo "✅ Flutter directory exists"
+# 3. RUN COMMANDS USING THE ABSOLUTE PATH (No PATH variable reliance)
+echo "✅ Verifying Flutter binary at: $FLUTTER_BIN"
+"$FLUTTER_BIN" --version
 
-# ALWAYS call Flutter via absolute path
-"$FLUTTER_HOME/bin/flutter" --version
-"$FLUTTER_HOME/bin/flutter" pub get
-"$FLUTTER_HOME/bin/flutter" build ios --config-only
+echo "📦 Running flutter pub get..."
+"$FLUTTER_BIN" pub get
 
+echo "⚙️ Generating iOS configuration..."
+"$FLUTTER_BIN" build ios --config-only
+
+# 4. Install Pods
+echo "☕️ Installing CocoaPods..."
 cd ios
 pod install
 
+echo "✅ Script Finished Successfully."
