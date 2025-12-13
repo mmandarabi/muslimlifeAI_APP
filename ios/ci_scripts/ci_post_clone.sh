@@ -1,31 +1,33 @@
 #!/bin/bash
-set -e
+set -e  # Fail on any error
+set -x  # Print every command (so we can see exactly what happens)
 
-# 1. Define the absolute path where we want Flutter
+# 1. FIX LOCALES (CRITICAL for CocoaPods)
+# Xcode Cloud often lacks these, causing 'pod install' to crash with Code 1
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
+# 2. DEFINE PATHS
 FLUTTER_HOME="$HOME/flutter"
 FLUTTER_BIN="$FLUTTER_HOME/bin/flutter"
 
-echo "▶️ Starting Xcode Cloud Setup..."
+echo "▶️ Starting Bulletproof Setup..."
 
-# 2. Clone Flutter if it doesn't exist
-if [ ! -d "$FLUTTER_HOME" ]; then
-  echo "⬇️ Cloning Flutter SDK..."
-  git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
-else
-  echo "✅ Flutter SDK already exists at $FLUTTER_HOME"
-fi
+# 3. CLEAN START
+# Remove any existing Flutter folder to prevent git conflicts from cached builds
+rm -rf "$FLUTTER_HOME"
 
-# 3. RUN COMMANDS USING THE ABSOLUTE PATH (No PATH variable reliance)
-echo "✅ Verifying Flutter binary at: $FLUTTER_BIN"
-"$FLUTTER_BIN" --version
+echo "⬇️ Cloning Flutter SDK..."
+git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
 
-echo "📦 Running flutter pub get..."
+# 4. RUN FLUTTER
+echo "✅ Flutter binary: $FLUTTER_BIN"
+# Disable analytics to prevent hanging on prompt
+"$FLUTTER_BIN" config --no-analytics
 "$FLUTTER_BIN" pub get
-
-echo "⚙️ Generating iOS configuration..."
 "$FLUTTER_BIN" build ios --config-only
 
-# 4. Install Pods
+# 5. POD INSTALL
 echo "☕️ Installing CocoaPods..."
 cd ios
 pod install
