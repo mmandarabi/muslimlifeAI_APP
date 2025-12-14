@@ -53,7 +53,7 @@ class _HomeTabState extends State<HomeTab> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20.0),
+      padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -125,7 +125,7 @@ class _HomeTabState extends State<HomeTab> {
                         stream: Stream.periodic(const Duration(seconds: 1)),
                         builder: (context, snapshot) {
                           return Text(
-                            DateFormat('hh:mm a').format(DateTime.now()),
+                            DateFormat('h:mm a').format(DateTime.now()),
                             style: GoogleFonts.poppins(
                               fontSize: 24, // Adjusted for fit
                               fontWeight: FontWeight.bold,
@@ -163,7 +163,7 @@ class _HomeTabState extends State<HomeTab> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                _prayerTimes?.nextPrayerTime ?? "--:--",
+                                _formatTo12Hour(_prayerTimes?.nextPrayerTime),
                                 style: GoogleFonts.poppins(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -213,6 +213,17 @@ class _HomeTabState extends State<HomeTab> {
       case 'maghrib': return 'المغرب';
       case 'isha': return 'العشاء';
       default: return '';
+    }
+  }
+
+  String _formatTo12Hour(String? time) {
+    if (time == null) return "--:--";
+    try {
+      // Expecting "HH:mm"
+      final date = DateFormat.Hm().parse(time); 
+      return DateFormat('h:mm a').format(date);
+    } catch (e) {
+      return time;
     }
   }
 }

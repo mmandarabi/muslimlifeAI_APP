@@ -342,15 +342,16 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  _selectedTabIndex == 1 ? "Hadith" : "Quran",
+                  ["Quran", "Hadith", "Favorites"][_selectedTabIndex],
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
-                if (_selectedTabIndex == 0)
-                  IconButton(
-                    onPressed: () => _showReciterSelector(context),
+                Opacity(
+                  opacity: _selectedTabIndex == 0 ? 1.0 : 0.0,
+                  child: IconButton(
+                    onPressed: _selectedTabIndex == 0 ? () => _showReciterSelector(context) : null,
                     icon: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -360,6 +361,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                       child: const Icon(LucideIcons.mic, color: Colors.white),
                     ),
                   ),
+                ),
               ],
             ),
           ),
@@ -381,7 +383,13 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
           const SizedBox(height: 20),
 
           // Search Bar
-          if (_selectedTabIndex == 0) ...[
+          Visibility(
+            visible: _selectedTabIndex == 0,
+            maintainSize: true, 
+            maintainAnimation: true,
+            maintainState: true,
+            child: Column(
+              children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
@@ -446,8 +454,10 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                 ),
               ),
 
-            const SizedBox(height: 20),
-          ],
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
 
           // Content
           Expanded(

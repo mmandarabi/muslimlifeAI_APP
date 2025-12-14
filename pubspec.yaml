@@ -34,21 +34,21 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo_transparent.png"
+  image_path: "assets/images/logo_final.png"
   min_sdk_android: 21 # android min sdk min:16, default 21
   web:
     generate: true
-    image_path: "assets/images/logo_transparent.png"
+    image_path: "assets/images/logo_final.png"
     background_color: "#0B0C0E"
     theme_color: "#0B0C0E"
 
 flutter_native_splash:
   color: "#0B0C0E"
   # Use background_image to try and fill the screen (iOS/Old Android)
-  background_image: assets/images/logo_transparent.png
-  image: assets/images/logo_transparent.png
+  background_image: assets/images/logo_final.png
+  image: assets/images/logo_final.png
   android_12:
-    image: assets/images/logo_transparent.png
+    image: assets/images/logo_final.png
     color: "#0B0C0E"
     # Blend the icon circle with the background to remove the "white circle" effect
     icon_background_color: "#0B0C0E"

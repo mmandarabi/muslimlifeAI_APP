@@ -9,12 +9,30 @@ class AiService {
   // --- Dynamic Base URL ---
   String get _baseUrl => ApiConfig.baseUrl;
 
+  // --- Static Cache (Session Level) ---
+  static Map<String, dynamic>? _cachedInsight;
+
   // --- Insight Function (Horeen) ---
   Future<Map<String, dynamic>> generateInsight(String event, Map<String, dynamic> data) async {
-    return _postToFunction("generateInsight", {
+    // 1. Check Cache
+    if (_cachedInsight != null) {
+      debugPrint("AiService: Returning Cached Insight.");
+      return _cachedInsight!;
+    }
+
+    // 2. Fetch from API
+    final response = await _postToFunction("generateInsight", {
       "event": event,
       "data": data,
     });
+
+    // 3. Store in Cache (only if valid)
+    if (response["type"] == "insight") {
+      debugPrint("AiService: Caching Insight.");
+      _cachedInsight = response;
+    }
+
+    return response;
   }
 
   // --- Chat Function (Noor) ---
@@ -39,7 +57,7 @@ class AiService {
       debugPrint("AiService: Fetching ID Token for user ${user.uid}...");
       try {
         // Enforce a timeout on token fetching to prevent indefinite hangs
-        token = await user.getIdToken().timeout(const Duration(seconds: 30));
+        token = await user.getIdToken().timeout(const Duration(seconds: 2));
         debugPrint("AiService: ID Token fetched.");
       } catch (e) {
         debugPrint("AiService: WARNING - Failed to get ID token: $e");

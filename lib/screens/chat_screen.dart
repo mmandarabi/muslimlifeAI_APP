@@ -73,118 +73,141 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Use SafeArea to ensure header matches other tabs
     return Scaffold(
       backgroundColor: const Color(0xFF0B0C0E),
-      appBar: AppBar(
-        title: Text("Noor AI", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrow_left, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                final isUser = msg["role"] == "user";
-                
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (!isUser) ...[
-                        const CircleAvatar(
-                          backgroundColor: AppColors.primary,
-                          radius: 16,
-                          child: Icon(LucideIcons.bot, size: 18, color: Colors.white),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isUser ? AppColors.primary.withOpacity(0.2) : Colors.white.withOpacity(0.05),
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: isUser ? const Radius.circular(16) : Radius.zero,
-                              bottomRight: isUser ? Radius.zero : const Radius.circular(16),
-                            ),
-                            border: Border.all(
-                              color: isUser ? AppColors.primary.withOpacity(0.5) : Colors.white10,
-                            ),
-                          ),
-                          child: Text(
-                            msg["text"] ?? "",
-                            style: GoogleFonts.inter(
-                               color: Colors.white,
-                               fontSize: 14,
-                               height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ),
-                       if (isUser) ...[
-                        const SizedBox(width: 8),
-                        CircleAvatar(
-                          backgroundColor: Colors.grey[800],
-                          radius: 16,
-                          child: const Icon(LucideIcons.user, size: 18, color: Colors.white),
-                        ),
-                      ],
-                    ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom Header with Back Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      icon: const Icon(LucideIcons.arrow_left, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
                   ),
-                );
-              },
-            ),
-          ),
-          
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: SizedBox(
-                height: 20, 
-                width: 20, 
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)
+                  Text(
+                    "Noor AI",
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
               ),
             ),
 
-          GlassCard(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: "Ask Noor...",
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _messages.length,
+                itemBuilder: (context, index) {
+                  final msg = _messages[index];
+                  final isUser = msg["role"] == "user";
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (!isUser) ...[
+                          const CircleAvatar(
+                            backgroundColor: AppColors.primary,
+                            radius: 16,
+                            child: Icon(LucideIcons.bot, size: 18, color: Colors.white),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isUser ? AppColors.primary.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(16),
+                                topRight: const Radius.circular(16),
+                                bottomLeft: isUser ? const Radius.circular(16) : Radius.zero,
+                                bottomRight: isUser ? Radius.zero : const Radius.circular(16),
+                              ),
+                              border: Border.all(
+                                color: isUser ? AppColors.primary.withOpacity(0.5) : Colors.white10,
+                              ),
+                            ),
+                            child: Text(
+                              msg["text"] ?? "",
+                              style: GoogleFonts.inter(
+                                 color: Colors.white,
+                                 fontSize: 14,
+                                 height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ),
+                         if (isUser) ...[
+                          const SizedBox(width: 8),
+                          CircleAvatar(
+                            backgroundColor: Colors.grey[800],
+                            radius: 16,
+                            child: const Icon(LucideIcons.user, size: 18, color: Colors.white),
+                          ),
+                        ],
+                      ],
                     ),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _sendMessage,
-                  icon: const Icon(LucideIcons.send, color: AppColors.primary),
-                ),
-              ],
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+            
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: SizedBox(
+                  height: 20, 
+                  width: 20, 
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)
+                ),
+              ),
+
+            // Input Area (No extra padding needed for Nav Bar)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: GlassCard(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: "Ask Noor...",
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _sendMessage,
+                      icon: const Icon(LucideIcons.send, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
