@@ -30,6 +30,7 @@ class _QuranReadModeState extends State<QuranReadMode> {
   final UnifiedAudioService _audioService = UnifiedAudioService();
   StreamSubscription? _playerStateSubscription;
   bool _isPlaying = false;
+  bool _isDownloading = false;
 
   @override
   void initState() {
@@ -39,19 +40,23 @@ class _QuranReadModeState extends State<QuranReadMode> {
     _playerStateSubscription = _audioService.onPlayerStateChanged.listen((state) {
       if (mounted) setState(() => _isPlaying = state == PlayerState.playing);
     });
+    _audioService.downloadingNotifier.addListener(_onDownloadStatusChanged);
   }
 
   @override
   void dispose() {
     _playerStateSubscription?.cancel();
-    // Do not stop audio here, allowing background play if user goes back? 
-    // Spec says "Return -> resume". If I stop here, user loses playback. 
-    // "App background -> audio continues". 
-    // "Return to list -> resume"? No specific rule for navigating BACK. 
-    // QuranScreen has "Stop when leaving". I should probably align.
-    // However, user might want to read list while listening. 
-    // I will leave it running unless explicitly stopped.
+    _audioService.downloadingNotifier.removeListener(_onDownloadStatusChanged);
+    _audioService.stop(); // Stop audio and ABORT downloads when leaving
     super.dispose();
+  }
+
+  void _onDownloadStatusChanged() {
+    if (mounted) {
+      setState(() {
+         _isDownloading = _audioService.downloadingNotifier.value;
+      });
+    }
   }
 
   // --- Helper Logic ---
@@ -127,16 +132,26 @@ class _QuranReadModeState extends State<QuranReadMode> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: Icon(_isPlaying ? LucideIcons.square : LucideIcons.play, color: Colors.white),
-            onPressed: () {
-               if (_isPlaying) {
-                 _audioService.stop();
-               } else {
-                 _audioService.playSurah(widget.surahId);
-               }
-            },
-          ),
+          if (_isDownloading) 
+             const Padding(
+               padding: EdgeInsets.all(12.0),
+               child: SizedBox(
+                 width: 24, 
+                 height: 24, 
+                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+               ),
+             )
+          else 
+            IconButton(
+              icon: Icon(_isPlaying ? LucideIcons.square : LucideIcons.play, color: Colors.white),
+              onPressed: () {
+                 if (_isPlaying) {
+                   _audioService.stop();
+                 } else {
+                   _audioService.playSurah(widget.surahId);
+                 }
+              },
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: TextButton(

@@ -47,6 +47,8 @@ class UnifiedAudioService with WidgetsBindingObserver {
   Stream<void> get onPlayerComplete => _audioPlayer.onPlayerComplete;
   Stream<PlayerState> get onPlayerStateChanged => _audioPlayer.onPlayerStateChanged;
 
+  final ValueNotifier<bool> downloadingNotifier = ValueNotifier(false);
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Audio continues in background as per user requirement.
@@ -172,42 +174,40 @@ class UnifiedAudioService with WidgetsBindingObserver {
     }
   }
 
+  http.Client? _activeDownloadClient;
   Timer? _volumeTimer;
   DateTime _lastStopRequest = DateTime.fromMillisecondsSinceEpoch(0);
 
   Future<void> playSurah(int surahId, {int? ayahNumber}) async {
-    final methodStartTime = DateTime.now();
-    await _stopInternal(); // Internal stop, does not update _lastStopRequest
+    // 1. Pre-emptive Switch: Stop anything currently playing or downloading
+    await stop(); 
     
-    // Gentle fade-in start
-    await _audioPlayer.setVolume(0.1); 
-
-    final formattedId = surahId.toString().padLeft(3, '0');
-    // We append the reciter name to the filename to avoid caching conflicts if user switches reciters
-    final fileName = 'surah_${formattedId}_$_currentQuranReciter.mp3';
+    // 2. Start a fresh lifecycle for this request
+    _activeDownloadClient = http.Client();
+    final methodStartTime = DateTime.now();
 
     try {
+      downloadingNotifier.value = true; // Lock UI spinner
+      
+      // Gentle fade-in start volume
+      await _audioPlayer.setVolume(0.1); 
+
+      final formattedId = surahId.toString().padLeft(3, '0');
+      final fileName = 'surah_${formattedId}_$_currentQuranReciter.mp3';
+
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/$fileName');
       final tempFile = File('${dir.path}/$fileName.temp');
 
-      // Check if stop was requested while we were setting up
-      if (_lastStopRequest.isAfter(methodStartTime)) {
-         debugPrint("UnifiedAudioService: Play cancelled by subsequent stop request.");
-         return;
-      }
+      // Sync check: was stop requested while we were setting up?
+      if (_lastStopRequest.isAfter(methodStartTime)) return;
 
       if (await file.exists()) {
         await _audioPlayer.play(DeviceFileSource(file.path));
         _currentAsset = file.path;
       } else {
-        // Dynamic reciter path
-        // sudais -> https://download.quranicaudio.com/quran/abdurrahmaan_as-sudays/
-        // saad -> https://download.quranicaudio.com/quran/sa3d_al-ghaamidi/complete/
-        // mishary -> https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/
-
+        // Dynamic reciter path logic
         String baseUrl = 'https://download.quranicaudio.com/quran/abdurrahmaan_as-sudays/';
-        
         switch (_currentQuranReciter) {
           case 'saad':
             baseUrl = 'https://download.quranicaudio.com/quran/sa3d_al-ghaamidi/complete/';
@@ -215,7 +215,6 @@ class UnifiedAudioService with WidgetsBindingObserver {
           case 'mishary':
             baseUrl = 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/';
             break;
-          case 'sudais':
           default:
             baseUrl = 'https://download.quranicaudio.com/quran/abdurrahmaan_as-sudays/';
             break;
@@ -228,17 +227,14 @@ class UnifiedAudioService with WidgetsBindingObserver {
         int startByte = 0;
         if (await tempFile.exists()) {
           startByte = await tempFile.length();
-          debugPrint("UnifiedAudioService: Resuming download from byte $startByte");
         }
 
         final headers = startByte > 0 ? {'Range': 'bytes=$startByte-'} : <String, String>{};
-        final response = await http.get(Uri.parse(url), headers: headers);
         
-        // Check interruption again after download
-        if (_lastStopRequest.isAfter(methodStartTime)) {
-           debugPrint("UnifiedAudioService: Play cancelled after download by stop request.");
-           return;
-        }
+        // Use the managed client for pre-emptive cancellation
+        final response = await _activeDownloadClient!.get(Uri.parse(url), headers: headers);
+        
+        if (_lastStopRequest.isAfter(methodStartTime)) return;
 
         if (response.statusCode == 200 || response.statusCode == 206) {
           final mode = (response.statusCode == 206) ? FileMode.append : FileMode.write;
@@ -246,19 +242,16 @@ class UnifiedAudioService with WidgetsBindingObserver {
           await raf.writeFrom(response.bodyBytes);
           await raf.close();
           
-          // Rename temp to final mp3 ONLY if we believe it's done.
-          // Ideally check Content-Length, but simple approach: if no error, assume done.
-          // For robustness in demo, just rename.
           await tempFile.rename(file.path);
+
+          // Verify again before playing
+          if (_lastStopRequest.isAfter(methodStartTime)) return;
 
           await _audioPlayer.play(DeviceFileSource(file.path));
           _currentAsset = file.path;
         } else if (response.statusCode == 416) {
-           // Range Not Satisfiable - likely fully downloaded but not renamed? or server error.
-           // Try deleting temp and Retry from scratch?
-           debugPrint("UnifiedAudioService: Range error 416. Deleting temp and retrying.");
+           debugPrint("UnifiedAudioService: Range error 416. Resetting.");
            await tempFile.delete(); 
-           // Recursive retry or just fail for now? Let's fail gracefully to avoid loop.
            return;
         } else {
           debugPrint("UnifiedAudioService: Failed to download - ${response.statusCode}");
@@ -284,14 +277,18 @@ class UnifiedAudioService with WidgetsBindingObserver {
         }
       });
       
-      if (ayahNumber != null) {
-        debugPrint("Seeking to Ayah $ayahNumber (Not implemented without timestamp map)");
-      }
-
     } catch (e) {
-      debugPrint("UnifiedAudioService: Error in playSurah - $e");
+      if (e is http.ClientException || e.toString().contains('closed')) {
+        debugPrint("UnifiedAudioService: Request cancelled by user action.");
+      } else {
+        debugPrint("UnifiedAudioService: Error in playSurah - $e");
+      }
+    } finally {
+      downloadingNotifier.value = false;
     }
   }
+  
+
 
   Future<void> stop() async {
     debugPrint("UnifiedAudioService: STOP requested");
@@ -301,9 +298,12 @@ class UnifiedAudioService with WidgetsBindingObserver {
 
   Future<void> _stopInternal() async {
     _volumeTimer?.cancel();
+    _activeDownloadClient?.close();
+    _activeDownloadClient = null;
     await _audioPlayer.stop();
     _isPlaying = false;
     _currentAsset = null;
+    downloadingNotifier.value = false;
   }
 
   Future<void> setVoice(String voice) async {

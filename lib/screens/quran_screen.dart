@@ -32,6 +32,7 @@ class _QuranScreenState extends State<QuranScreen> {
   final UnifiedAudioService _audioService = UnifiedAudioService();
   StreamSubscription? _playerStateSubscription;
   bool _isPlaying = false;
+  bool _isDownloading = false;
   
   Future<QuranSurah>? _surahFuture;
 
@@ -51,13 +52,24 @@ class _QuranScreenState extends State<QuranScreen> {
         });
       }
     });
+    
+    _audioService.downloadingNotifier.addListener(_onDownloadStatusChanged);
   }
   
   @override
   void dispose() {
     _playerStateSubscription?.cancel();
+    _audioService.downloadingNotifier.removeListener(_onDownloadStatusChanged);
     _audioService.stop(); // Stop when leaving this screen
     super.dispose();
+  }
+
+  void _onDownloadStatusChanged() {
+    if (mounted) {
+      setState(() {
+         _isDownloading = _audioService.downloadingNotifier.value;
+      });
+    }
   }
 
   // --- Helper Logic ---
@@ -253,12 +265,25 @@ class _QuranScreenState extends State<QuranScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                   Icon(_isPlaying ? LucideIcons.square : LucideIcons.play, color: Colors.white, size: 20),
-                   const SizedBox(width: 12),
-                   Text(
-                      _isPlaying ? "Stop Audio" : "Play Recitation",
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                   ),
+                   if (_isDownloading) ...[
+                      const SizedBox(
+                        width: 20, 
+                        height: 20, 
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        "Downloading...",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                   ] else ...[
+                      Icon(_isPlaying ? LucideIcons.square : LucideIcons.play, color: Colors.white, size: 20),
+                      const SizedBox(width: 12),
+                      Text(
+                          _isPlaying ? "Stop Audio" : "Play Recitation",
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                   ],
                 ],
               ),
             ),
