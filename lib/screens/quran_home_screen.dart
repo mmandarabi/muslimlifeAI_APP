@@ -9,6 +9,7 @@ import 'package:muslim_life_ai_demo/screens/quran_read_mode.dart';
 import 'package:muslim_life_ai_demo/screens/quran_screen.dart';
 import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
+import 'package:muslim_life_ai_demo/services/unified_audio_service.dart';
 
 class QuranHomeScreen extends StatefulWidget {
   const QuranHomeScreen({super.key});
@@ -25,6 +26,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
   String? _ayahNavigationTarget; // e.g., "2:255"
+  final UnifiedAudioService _audioService = UnifiedAudioService();
 
   @override
   void initState() {
@@ -634,71 +636,108 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Select Reciter",
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Select Reciter",
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 24),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildReciterAvatar(
+                        context, 
+                        "Al-Sudais", 
+                        "makkah", 
+                        _audioService.currentVoice == "makkah",
+                        (val) {
+                          _audioService.setVoice(val);
+                          setModalState(() {});
+                          setState(() {}); // Update parent too
+                        }
+                      ),
+                      const SizedBox(width: 20),
+                      _buildReciterAvatar(
+                        context, 
+                        "Saad al-Ghamdi", 
+                        "madinah", 
+                        _audioService.currentVoice == "madinah",
+                         (val) {
+                          _audioService.setVoice(val);
+                          setModalState(() {});
+                          setState(() {});
+                        }
+                      ),
+                      const SizedBox(width: 20),
+                      _buildReciterAvatar(
+                        context, 
+                        "Mishary Alafasy", 
+                        "quds", 
+                        _audioService.currentVoice == "quds",
+                         (val) {
+                          _audioService.setVoice(val);
+                          setModalState(() {});
+                          setState(() {});
+                        }
+                      ),
+                    ],
                   ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
-            const SizedBox(height: 24),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildReciterAvatar(context, "Saad al-Ghamdi", true),
-                  const SizedBox(width: 20),
-                  _buildReciterAvatar(context, "Al-Sudais", false),
-                  const SizedBox(width: 20),
-                  _buildReciterAvatar(context, "Mishary Alafasy", false),
-                  const SizedBox(width: 20),
-                  _buildReciterAvatar(context, "Minshawi", false),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
+          );
+        }
       ),
     );
   }
 
-  Widget _buildReciterAvatar(BuildContext context, String name, bool isSelected) {
-    return Column(
-      children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: isSelected ? AppColors.primary : Colors.transparent,
-              width: 2,
+  Widget _buildReciterAvatar(BuildContext context, String name, String code, bool isSelected, Function(String) onSelect) {
+    return GestureDetector(
+      onTap: () => onSelect(code),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? AppColors.primary : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              isValidIcon() ? LucideIcons.user : Icons.person, // Handle icon safely
+              color: isSelected ? AppColors.primary : Colors.white54,
+              size: 32,
             ),
           ),
-          child: Icon(
-            LucideIcons.user,
-            color: isSelected ? AppColors.primary : Colors.white54,
-            size: 32,
+          const SizedBox(height: 8),
+          Text(
+            name,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isSelected ? AppColors.primary : Colors.white70,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          name,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: isSelected ? AppColors.primary : Colors.white70,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-        ),
-      ],
+        ],
+      ),
     );
   }
+  
+  bool isValidIcon() => true; // Simplified for this snippet since we have LucideIcons imported
 }
 

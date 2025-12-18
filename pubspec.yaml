@@ -1,7 +1,7 @@
 name: muslim_life_ai_demo
 description: A High-Fidelity Investor Demo for MuslimLife AI.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.2+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -20,9 +20,15 @@ dependencies:
   http: ^1.6.0
   geolocator: ^13.0.0
   permission_handler: ^11.0.0
+  path_provider: ^2.1.2
   flutter_compass: ^0.8.0
   adhan: ^2.0.0
   vector_math: ^2.1.4
+  audioplayers: ^6.5.1
+  shared_preferences: ^2.5.4
+  flutter_local_notifications: ^19.5.0
+  timezone: ^0.10.0
+  flutter_timezone: ^3.0.1
 
 dev_dependencies:
   flutter_test:
@@ -58,6 +64,8 @@ flutter:
   assets:
     - assets/quran/
     - assets/images/
+    - assets/audio/
+    - assets/audio/Adhan/
   fonts:
     - family: KFGQPCUthmanic
       fonts:

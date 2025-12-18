@@ -31,4 +31,8 @@ class PrayerTimes {
       nextPrayerTime: json['nextPrayerTime'] ?? '--:--',
     );
   }
+  
+  // Getters for UI compatibility
+  String get nextPrayerName => nextPrayer;
+  String get dateHijri => "27 Jumada al-Awwal 1447 AH"; // Placeholder until Hijri lib added
 }

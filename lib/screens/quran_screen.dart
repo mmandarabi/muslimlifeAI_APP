@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -6,6 +8,7 @@ import 'package:muslim_life_ai_demo/models/quran_display_names.dart';
 import 'package:muslim_life_ai_demo/models/quran_surah.dart';
 import 'package:muslim_life_ai_demo/models/quran_ayah.dart';
 import 'package:muslim_life_ai_demo/services/quran_local_service.dart';
+import 'package:muslim_life_ai_demo/services/unified_audio_service.dart';
 import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
 import 'package:muslim_life_ai_demo/screens/quran_read_mode.dart';
@@ -25,14 +28,36 @@ class QuranScreen extends StatefulWidget {
 }
 
 class _QuranScreenState extends State<QuranScreen> {
-  bool _isListening = false;
-  bool _showFeedback = false;
+  // Audio
+  final UnifiedAudioService _audioService = UnifiedAudioService();
+  StreamSubscription? _playerStateSubscription;
+  bool _isPlaying = false;
+  
   Future<QuranSurah>? _surahFuture;
 
   @override
   void initState() {
     super.initState();
     _surahFuture = QuranLocalService().getSurahDetails(widget.surahId);
+    
+    // Sync initial state
+    _isPlaying = _audioService.isPlaying;
+    
+    // Listen for changes
+    _playerStateSubscription = _audioService.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _playerStateSubscription?.cancel();
+    _audioService.stop(); // Stop when leaving this screen
+    super.dispose();
   }
 
   // --- Helper Logic ---
@@ -49,12 +74,11 @@ class _QuranScreenState extends State<QuranScreen> {
     return result;
   }
 
-  // Estimates the Juz number based on Surah ID (Standard approximation for Demo)
   int _getJuzForSurah(int surahId) {
     if (surahId >= 1 && surahId <= 2) return 1;
     if (surahId == 3) return 3;
     if (surahId == 4) return 4;
-    // ... simplified mapping for brevity ...
+    // ... simplified mapping ...
     if (surahId >= 5 && surahId <= 114) {
        return (surahId / 4).ceil(); 
     }
@@ -73,25 +97,27 @@ class _QuranScreenState extends State<QuranScreen> {
     }
   }
 
-  void _toggleListening() async {
-    if (_isListening) return;
-
-    setState(() {
-      _isListening = true;
-    });
-
-    // Simulate listening delay
-    await Future.delayed(const Duration(seconds: 3));
-
-    if (mounted) {
-      setState(() {
-        _isListening = false;
-      });
-      _showFeedbackBottomSheet();
+  void _togglePlayback() {
+    if (_isPlaying) {
+      _audioService.stop();
+    } else {
+      _audioService.playSurah(widget.surahId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Playing Recitation..."), duration: Duration(milliseconds: 500)),
+      );
     }
   }
 
-  void _showFeedbackBottomSheet() {
+  String _getReciterName(String code) {
+    switch (code.toLowerCase()) {
+      case 'makkah': return "Sheikh Sudais (Makkah)";
+      case 'madinah': return "Sheikh Budair (Madinah)";
+      case 'quds': return "Imam Al-Aqsa";
+      default: return "Mishary Rashid Alafasy"; // Default
+    }
+  }
+
+  void _showReciterSelector() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -101,62 +127,23 @@ class _QuranScreenState extends State<QuranScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Recitation Analysis",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.green),
-                  ),
-                  child: const Text(
-                    "92% Accurate",
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            Text("Select Reciter", style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
             const SizedBox(height: 16),
-            Text(
-              "Correction:",
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "You missed the Ghunnah on the last verse.",
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white70,
-                  ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(LucideIcons.check, size: 18),
-                label: const Text("Got it"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+            ...['makkah', 'madinah', 'quds'].map((code) {
+              final isSelected = _audioService.currentVoice == code;
+              return ListTile(
+                leading: Icon(
+                  isSelected ? Icons.check_circle : Icons.circle_outlined,
+                  color: isSelected ? AppColors.primary : Colors.white54,
                 ),
-              ),
-            ),
+                title: Text(_getReciterName(code), style: const TextStyle(color: Colors.white)),
+                onTap: () async {
+                  await _audioService.setVoice(code);
+                  if (mounted) setState(() {}); // Refresh UI
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
           ],
         ),
       ),
@@ -175,26 +162,36 @@ class _QuranScreenState extends State<QuranScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        title: Column(
-          children: [
-            Text(
-              "Smart Tutor",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white70,
-                    letterSpacing: 1,
+        title: GestureDetector(
+          onTap: _showReciterSelector,
+          child: Column(
+            children: [
+              Text(
+                "Smart Tutor",
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white70,
+                      letterSpacing: 1,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _getReciterName(_audioService.currentVoice).toUpperCase(),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.primary, // Highlight clickable
+                          fontSize: 10,
+                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "MISHARY RASHID ALAFASY",
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.grey[600],
-                    fontSize: 10,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ],
+                  const SizedBox(width: 4),
+                  const Icon(LucideIcons.chevron_down, size: 10, color: AppColors.primary),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           Padding(
@@ -226,15 +223,51 @@ class _QuranScreenState extends State<QuranScreen> {
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _toggleListening,
-        backgroundColor: _isListening ? Colors.red : AppColors.primary,
-        icon: Icon(_isListening ? LucideIcons.timer : LucideIcons.mic, color: Colors.white),
-        label: Text(
-          _isListening ? "Listening..." : "Tap to Recite",
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      floatingActionButton: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: _isPlaying ? Colors.redAccent : AppColors.primary,
+          borderRadius: BorderRadius.circular(16), // Rounded rect like Extended FAB
+          boxShadow: [
+            BoxShadow(
+              color: (_isPlaying ? Colors.redAccent : AppColors.primary).withOpacity(0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-      ).animate(target: _isListening ? 1 : 0).shake(hz: 2),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+               if (!_audioService.isVoiceExplicitlySet) {
+                 _showReciterSelector(); // First time logic
+               } else {
+                 _togglePlayback();
+               }
+            },
+            onLongPress: () {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Select Reciter"), duration: Duration(milliseconds: 500)));
+              _showReciterSelector();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                   Icon(_isPlaying ? LucideIcons.square : LucideIcons.play, color: Colors.white, size: 20),
+                   const SizedBox(width: 12),
+                   Text(
+                      _isPlaying ? "Stop Audio" : "Play Recitation",
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                   ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ).animate(target: _isPlaying ? 1 : 0).shimmer(duration: 2.seconds),
       body: Stack(
         children: [
           // Optional: Subtle Gradient Overlay

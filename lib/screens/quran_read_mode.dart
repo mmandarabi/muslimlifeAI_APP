@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,6 +7,7 @@ import 'package:muslim_life_ai_demo/models/quran_display_names.dart';
 import 'package:muslim_life_ai_demo/models/quran_surah.dart';
 import 'package:muslim_life_ai_demo/models/quran_ayah.dart';
 import 'package:muslim_life_ai_demo/services/quran_local_service.dart';
+import 'package:muslim_life_ai_demo/services/unified_audio_service.dart';
 import 'package:muslim_life_ai_demo/screens/quran_screen.dart';
 import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 
@@ -24,11 +27,31 @@ class QuranReadMode extends StatefulWidget {
 
 class _QuranReadModeState extends State<QuranReadMode> {
   Future<QuranSurah>? _surahFuture;
+  final UnifiedAudioService _audioService = UnifiedAudioService();
+  StreamSubscription? _playerStateSubscription;
+  bool _isPlaying = false;
 
   @override
   void initState() {
     super.initState();
     _surahFuture = QuranLocalService().getSurahDetails(widget.surahId);
+    _isPlaying = _audioService.isPlaying;
+    _playerStateSubscription = _audioService.onPlayerStateChanged.listen((state) {
+      if (mounted) setState(() => _isPlaying = state == PlayerState.playing);
+    });
+  }
+
+  @override
+  void dispose() {
+    _playerStateSubscription?.cancel();
+    // Do not stop audio here, allowing background play if user goes back? 
+    // Spec says "Return -> resume". If I stop here, user loses playback. 
+    // "App background -> audio continues". 
+    // "Return to list -> resume"? No specific rule for navigating BACK. 
+    // QuranScreen has "Stop when leaving". I should probably align.
+    // However, user might want to read list while listening. 
+    // I will leave it running unless explicitly stopped.
+    super.dispose();
   }
 
   // --- Helper Logic ---
@@ -104,6 +127,16 @@ class _QuranReadModeState extends State<QuranReadMode> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: Icon(_isPlaying ? LucideIcons.square : LucideIcons.play, color: Colors.white),
+            onPressed: () {
+               if (_isPlaying) {
+                 _audioService.stop();
+               } else {
+                 _audioService.playSurah(widget.surahId);
+               }
+            },
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: TextButton(
@@ -179,10 +212,11 @@ class _QuranReadModeState extends State<QuranReadMode> {
                 ),
 
                 // --- 2. Main Page Content (Title Box + Verses) ---
+                // --- 2. Main Page Content (Title Box + Verses) ---
                 Expanded(
                   child: Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     // Inner padding for the 'page' content
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     // Decorative Double Border (Green/Gold)
@@ -204,13 +238,13 @@ class _QuranReadModeState extends State<QuranReadMode> {
                       ),
                       padding: const EdgeInsets.all(8), // Space between border and text
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.only(bottom: 40),
+                        padding: const EdgeInsets.only(bottom: 20),
                         child: Column(
                           children: [
                             // Decorative Title Box
                             Container(
                               width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 24, top: 16), // Added top spacing
+                              margin: const EdgeInsets.only(bottom: 24, top: 16),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.05), // Darker fill
@@ -257,7 +291,127 @@ class _QuranReadModeState extends State<QuranReadMode> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+
+                // --- 3. Fixed Bottom Navigation Bar ---
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B0C0E),
+                    border: Border(
+                      top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Previous Surah Button
+                      if (surah.id > 1)
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () async {
+                              final prevId = surah.id - 1;
+                              try {
+                                final prevSurah = await QuranLocalService().getSurahDetails(prevId);
+                                if (context.mounted) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => QuranReadMode(
+                                        surahId: prevId,
+                                        surahName: prevSurah.transliteration,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint("Error navigating to previous surah: $e");
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(LucideIcons.chevron_left, color: Colors.white70, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Previous",
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        const Spacer(), // Placeholder to keep spacing alignment if needed
+
+                      // Spacing between buttons
+                      if (surah.id > 1 && surah.id < 114)
+                         const SizedBox(width: 16),
+
+                      // Next Surah Button
+                      if (surah.id < 114)
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () async {
+                              final nextId = surah.id + 1;
+                              try {
+                                final nextSurah = await QuranLocalService().getSurahDetails(nextId);
+                                if (context.mounted) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => QuranReadMode(
+                                        surahId: nextId,
+                                        surahName: nextSurah.transliteration,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint("Error navigating to next surah: $e");
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "Next Surah",
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(LucideIcons.chevron_right, color: Colors.white, size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                         const Spacer(),
+                    ],
+                  ),
+                ),
               ],
             );
           },
