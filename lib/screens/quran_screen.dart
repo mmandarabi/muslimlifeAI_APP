@@ -110,10 +110,11 @@ class _QuranScreenState extends State<QuranScreen> {
 
   String _getReciterName(String code) {
     switch (code.toLowerCase()) {
-      case 'makkah': return "Sheikh Sudais (Makkah)";
-      case 'madinah': return "Sheikh Budair (Madinah)";
-      case 'quds': return "Imam Al-Aqsa";
-      default: return "Mishary Rashid Alafasy"; // Default
+      case 'sudais': return "Sheikh Sudais (Makkah)";
+      case 'saad': return "Saad al-Ghamdi";
+      case 'mishary': return "Mishary Rashid Alafasy";
+      case 'makkah': return "Sheikh Sudais (Makkah)"; // Fallback for old shared logic if needed
+      default: return "Sheikh Sudais (Makkah)"; // Default
     }
   }
 
@@ -129,8 +130,8 @@ class _QuranScreenState extends State<QuranScreen> {
           children: [
             Text("Select Reciter", style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
             const SizedBox(height: 16),
-            ...['makkah', 'madinah', 'quds'].map((code) {
-              final isSelected = _audioService.currentVoice == code;
+            ...['sudais', 'saad', 'mishary'].map((code) {
+              final isSelected = _audioService.currentQuranReciter == code;
               return ListTile(
                 leading: Icon(
                   isSelected ? Icons.check_circle : Icons.circle_outlined,
@@ -138,7 +139,7 @@ class _QuranScreenState extends State<QuranScreen> {
                 ),
                 title: Text(_getReciterName(code), style: const TextStyle(color: Colors.white)),
                 onTap: () async {
-                  await _audioService.setVoice(code);
+                  await _audioService.setQuranReciter(code);
                   if (mounted) setState(() {}); // Refresh UI
                   Navigator.pop(context);
                 },
@@ -178,7 +179,7 @@ class _QuranScreenState extends State<QuranScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _getReciterName(_audioService.currentVoice).toUpperCase(),
+                    _getReciterName(_audioService.currentQuranReciter).toUpperCase(),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: AppColors.primary, // Highlight clickable
                           fontSize: 10,
@@ -241,11 +242,7 @@ class _QuranScreenState extends State<QuranScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: () {
-               if (!_audioService.isVoiceExplicitlySet) {
-                 _showReciterSelector(); // First time logic
-               } else {
-                 _togglePlayback();
-               }
+               _togglePlayback();
             },
             onLongPress: () {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Select Reciter"), duration: Duration(milliseconds: 500)));

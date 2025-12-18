@@ -29,6 +29,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   DateTime? _lastAutoAdhanTime; // Guards against re-triggering auto-play
   DateTime? _lastTapTime; // Debounce for manual taps
   bool _userStoppedAdhan = false; // User intent lock: if true, auto-adhan is blocked
+  bool _isSwitchingAudio = false; // Guards against transient stop events during play switch
   
   // Audio Service
   final UnifiedAudioService _audioService = UnifiedAudioService();
@@ -44,6 +45,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     
     // Listen for external stop or completion
     _playerStateSubscription = _audioService.onPlayerStateChanged.listen((state) {
+        // Ignore "stopped" events if we are in the middle of switching/starting audio
+        if (_isSwitchingAudio) return;
+
         if (state != PlayerState.playing && mounted) {
             setState(() {
                 _playingPrayer = null;
@@ -136,7 +140,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
         // Only if app is foreground (which is true if this timer is running usually, but check lifecycle state ideally).
         // Since we are in Widget, we assume standard behavior.
         
-        if (nextTime.hour == now.hour && nextTime.minute == now.minute && now.second == 0) {
+        if (nextTime.hour == now.hour && nextTime.minute == now.minute && now.second < 5) {
             // Guard: Only fire if we haven't already for this time slot
             if (_lastAutoAdhanTime == null || now.difference(_lastAutoAdhanTime!).inMinutes >= 1) {
                 _handleAutoAdhan();
@@ -175,11 +179,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       if (enabled) {
           debugPrint("Auto-Adhan Triggered (Foreground)");
           if (mounted && _prayerTimes != null) {
+             _isSwitchingAudio = true;
              setState(() {
                 _playingPrayer = _prayerTimes!.nextPrayer;
              });
           }
-          _audioService.playAdhanWithFade();
+          await _audioService.playAdhanWithFade();
+          if (mounted) _isSwitchingAudio = false;
       }
   }
 
@@ -291,14 +297,14 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 // Main Countdown Card
                 GlassCard(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
                     child: Column(
                       children: [
                          Text(
                           pt.nextPrayerName,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 32,
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.1,
                           ),
@@ -308,7 +314,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                           _formatDuration(_timeUntilNextPrayer),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 48,
+                            fontSize: 42,
                             fontWeight: FontWeight.bold,
                             fontFeatures: [FontFeature.tabularFigures()],
                           ),
@@ -331,20 +337,20 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                   ),
                 ),
                 
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
                 
                 // Daily Schedule List
                 _buildPrayerRow("Fajr", pt.fajr, "الفجر"),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _buildPrayerRow("Dhuhr", pt.dhuhr, "الظهر"),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _buildPrayerRow("Asr", pt.asr, "العصر"),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _buildPrayerRow("Maghrib", pt.maghrib, "المغرب"), // Highlight if current?
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _buildPrayerRow("Isha", pt.isha, "العشاء"),
                 
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
                 
                  Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -357,7 +363,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     ),
                   ],
                 ),
-                 const SizedBox(height: 80),
+                 const SizedBox(height: 40),
               ],
             ),
           ),
@@ -371,7 +377,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     bool isPlayingThis = _playingPrayer == english;
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: isNext ? const Color(0xFF0B1410).withOpacity(0.8) : const Color(0xFF1E1E1E),
         border: isNext ? Border.all(color: AppColors.primary.withOpacity(0.5)) : Border.all(color: Colors.white10),
@@ -411,7 +417,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
           
           // Speaker Icon Toggle
           GestureDetector(
-            onTap: () {
+            onTap: () async {
               final now = DateTime.now();
               if (_lastTapTime != null && now.difference(_lastTapTime!).inMilliseconds < 1000) {
                 debugPrint("UI: Tap debounced.");
@@ -427,8 +433,11 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
               } else {
                 debugPrint("UI: User manually TAP PLAY");
                 _userStoppedAdhan = false; // User explicitly played it, reset lock
-                _audioService.playAdhan(); // Full Adhan explicit play
+                
+                _isSwitchingAudio = true;
                 setState(() => _playingPrayer = english);
+                await _audioService.playAdhan(); 
+                if(mounted) _isSwitchingAudio = false;
               }
             },
             child: AnimatedContainer(
@@ -479,9 +488,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
             child: const Text("Later", style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white, // Explicit text color
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Enable"),
+            child: const Text("Enable", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

@@ -28,7 +28,10 @@ class UnifiedAudioService with WidgetsBindingObserver {
   // Voice Preferences
   static const String _prefVoiceKey = 'selected_voice_key';
   static const String _prefVoiceSetKey = 'voice_explicitly_set';
-  String _currentVoice = 'makkah';
+  static const String _prefQuranReciterKey = 'selected_quran_reciter_key';
+  
+  String _currentVoice = 'makkah'; // For Adhan
+  String _currentQuranReciter = 'sudais'; // For Quran
   bool _isVoiceExplicitlySet = false;
 
   // State
@@ -38,6 +41,7 @@ class UnifiedAudioService with WidgetsBindingObserver {
   bool get isPlaying => _isPlaying;
   String? get currentAsset => _currentAsset;
   String get currentVoice => _currentVoice;
+  String get currentQuranReciter => _currentQuranReciter;
   bool get isVoiceExplicitlySet => _isVoiceExplicitlySet;
   
   Stream<void> get onPlayerComplete => _audioPlayer.onPlayerComplete;
@@ -52,6 +56,7 @@ class UnifiedAudioService with WidgetsBindingObserver {
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _currentVoice = prefs.getString(_prefVoiceKey) ?? 'makkah';
+    _currentQuranReciter = prefs.getString(_prefQuranReciterKey) ?? 'sudais';
     _isVoiceExplicitlySet = prefs.getBool(_prefVoiceSetKey) ?? false;
     
     _audioPlayer.onPlayerStateChanged.listen((state) {
@@ -178,7 +183,8 @@ class UnifiedAudioService with WidgetsBindingObserver {
     await _audioPlayer.setVolume(0.1); 
 
     final formattedId = surahId.toString().padLeft(3, '0');
-    final fileName = 'surah_$formattedId.mp3';
+    // We append the reciter name to the filename to avoid caching conflicts if user switches reciters
+    final fileName = 'surah_${formattedId}_$_currentQuranReciter.mp3';
 
     try {
       final dir = await getApplicationDocumentsDirectory();
@@ -196,11 +202,26 @@ class UnifiedAudioService with WidgetsBindingObserver {
         _currentAsset = file.path;
       } else {
         // Dynamic reciter path
-        String reciterPath = 'abdurrahmaan_as-sudays'; // Default
-        if (_currentVoice == 'madinah') reciterPath = 'mishari_alafasy'; // Example mapping
-        else if (_currentVoice == 'quds') reciterPath = 'salah_bukhatir'; // Example mapping
+        // sudais -> https://download.quranicaudio.com/quran/abdurrahmaan_as-sudays/
+        // saad -> https://download.quranicaudio.com/quran/sa3d_al-ghaamidi/complete/
+        // mishary -> https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/
 
-        final url = 'https://download.quranicaudio.com/quran/$reciterPath/$formattedId.mp3';
+        String baseUrl = 'https://download.quranicaudio.com/quran/abdurrahmaan_as-sudays/';
+        
+        switch (_currentQuranReciter) {
+          case 'saad':
+            baseUrl = 'https://download.quranicaudio.com/quran/sa3d_al-ghaamidi/complete/';
+            break;
+          case 'mishary':
+            baseUrl = 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/';
+            break;
+          case 'sudais':
+          default:
+            baseUrl = 'https://download.quranicaudio.com/quran/abdurrahmaan_as-sudays/';
+            break;
+        }
+
+        final url = '$baseUrl$formattedId.mp3';
         debugPrint("UnifiedAudioService: Downloading from $url");
         
         // Resumable Download Logic
@@ -286,11 +307,19 @@ class UnifiedAudioService with WidgetsBindingObserver {
   }
 
   Future<void> setVoice(String voice) async {
+    // This now strictly controls ADHAN voice
     _currentVoice = voice;
     _isVoiceExplicitlySet = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefVoiceKey, voice);
     await prefs.setBool(_prefVoiceSetKey, true);
+  }
+
+  Future<void> setQuranReciter(String reciterId) async {
+    // This controls QURAN reciter
+    _currentQuranReciter = reciterId;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefQuranReciterKey, reciterId);
   }
   
   /// Schedules notifications for all provided prayer times

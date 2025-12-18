@@ -659,10 +659,10 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                       _buildReciterAvatar(
                         context, 
                         "Al-Sudais", 
-                        "makkah", 
-                        _audioService.currentVoice == "makkah",
+                        "sudais", 
+                        _audioService.currentQuranReciter == "sudais",
                         (val) {
-                          _audioService.setVoice(val);
+                          _audioService.setQuranReciter(val);
                           setModalState(() {});
                           setState(() {}); // Update parent too
                         }
@@ -671,10 +671,10 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                       _buildReciterAvatar(
                         context, 
                         "Saad al-Ghamdi", 
-                        "madinah", 
-                        _audioService.currentVoice == "madinah",
+                        "saad", 
+                        _audioService.currentQuranReciter == "saad",
                          (val) {
-                          _audioService.setVoice(val);
+                          _audioService.setQuranReciter(val);
                           setModalState(() {});
                           setState(() {});
                         }
@@ -683,10 +683,10 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                       _buildReciterAvatar(
                         context, 
                         "Mishary Alafasy", 
-                        "quds", 
-                        _audioService.currentVoice == "quds",
+                        "mishary", 
+                        _audioService.currentQuranReciter == "mishary",
                          (val) {
-                          _audioService.setVoice(val);
+                          _audioService.setQuranReciter(val);
                           setModalState(() {});
                           setState(() {});
                         }
