@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:audioplayers/audioplayers.dart'; // For PlayerState
+import 'package:just_audio/just_audio.dart'; // For PlayerState
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -31,6 +31,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   bool _userStoppedAdhan = false; // User intent lock: if true, auto-adhan is blocked
   bool _isSwitchingAudio = false; // Guards against transient stop events during play switch
   
+  // Calculated Countdown State
+  String? _calculatedNextPrayerName;
+  String? _calculatedNextPrayerTime;
+  
   // Audio Service
   final UnifiedAudioService _audioService = UnifiedAudioService();
   StreamSubscription? _playerStateSubscription;
@@ -48,7 +52,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
         // Ignore "stopped" events if we are in the middle of switching/starting audio
         if (_isSwitchingAudio) return;
 
-        if (state != PlayerState.playing && mounted) {
+        if (!state.playing && mounted) {
             setState(() {
                 _playingPrayer = null;
             });
@@ -133,58 +137,77 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final now = DateTime.now();
-      DateTime? nextTime = _parseTime(_prayerTimes!.nextPrayerTime);
-      
-      if (nextTime != null) {
-        // Auto-Play Logic: Check tight window (e.g. 0-1 second match)
-        // Only if app is foreground (which is true if this timer is running usually, but check lifecycle state ideally).
-        // Since we are in Widget, we assume standard behavior.
-        
-        if (nextTime.hour == now.hour && nextTime.minute == now.minute && now.second < 5) {
-            // Guard: Only fire if we haven't already for this time slot
-            if (_lastAutoAdhanTime == null || now.difference(_lastAutoAdhanTime!).inMinutes >= 1) {
-                _handleAutoAdhan();
-                _lastAutoAdhanTime = now;
-            }
+      final pt = _prayerTimes!;
+
+      // 1. Identify the true "Next Prayer" by checking all 5 slots
+      final List<MapEntry<String, String>> prayerSlots = [
+        MapEntry("Fajr", pt.fajr),
+        MapEntry("Dhuhr", pt.dhuhr),
+        MapEntry("Asr", pt.asr),
+        MapEntry("Maghrib", pt.maghrib),
+        MapEntry("Isha", pt.isha),
+      ];
+
+      String? foundName;
+      DateTime? foundTime;
+
+      for (var slot in prayerSlots) {
+        final time = _parseTime(slot.value);
+        if (time != null && time.isAfter(now)) {
+          foundName = slot.key;
+          foundTime = time;
+          break;
         }
-        
-        if (nextTime.isBefore(now)) {
-             nextTime = nextTime.add(const Duration(days: 1));
+      }
+
+      // 2. If all passed today, next is tomorrow's Fajr
+      if (foundName == null) {
+        foundName = "Fajr";
+        foundTime = _parseTime(pt.fajr)?.add(const Duration(days: 1));
+      }
+
+      if (foundTime != null) {
+        // 3. Detect Transition (Current prayer passed)
+        if (_calculatedNextPrayerName != null && _calculatedNextPrayerName != foundName) {
+           final arrivingPrayer = _calculatedNextPrayerName;
+           debugPrint("UI: Prayer transition detected: $arrivingPrayer passed. Next is $foundName");
+           _handleAutoAdhan(arrivingPrayer); 
         }
-        
-        final diff = nextTime.difference(now);
+
+        // 4. Special Case: EXACT Match for Auto-Play 
+        // If we choose to trigger on the transition, the 'just passed' prayer is the one to play.
+        if (foundTime.hour == now.hour && foundTime.minute == now.minute && now.second == 0) {
+             // This hits exactly at the start of the next minute
+             // But transitions are usually better triggers.
+        }
+
         if (mounted) {
           setState(() {
-            _timeUntilNextPrayer = diff;
+            _calculatedNextPrayerName = foundName;
+            _calculatedNextPrayerTime = DateFormat("h:mm a").format(foundTime!);
+            _timeUntilNextPrayer = foundTime.difference(now);
           });
         }
       }
     });
   }
+
+  // Overloading handle to accept the prayer name that just started? 
+  // No, let's make it simpler: trigger when a prayer time is hit.
   
-  void _handleAutoAdhan() async {
-      // 1. User Intent Guard: If user stopped it, don't restart it.
-      if (_userStoppedAdhan) {
-         debugPrint("UI: Auto-Adhan BLOCKED by user intent lock.");
-         return;
-      }
-      
-      // 2. Permission Guard: Check silently (don't request if not already granted/determined)
-      // Actually, for foreground auto-play, we assume if they are on this screen, they might want it.
-      // But per request: "Adhan plays at prayer time when notifications are enabled."
-      // We will check permission status without prompting if possible, or just assume enabled for now based on user flow.
-      // Reverting to simple specific requirement: "if app is open... and notifications enabled"
+  void _handleAutoAdhan([String? prayerName]) async {
+      if (_userStoppedAdhan) return;
       
       bool enabled = await _audioService.requestNotificationPermissions(); 
       if (enabled) {
           debugPrint("Auto-Adhan Triggered (Foreground)");
-          if (mounted && _prayerTimes != null) {
+          if (mounted) {
              _isSwitchingAudio = true;
              setState(() {
-                _playingPrayer = _prayerTimes!.nextPrayer;
+                _playingPrayer = prayerName; 
              });
           }
-          await _audioService.playAdhanWithFade();
+          await _audioService.playAdhanCue();
           if (mounted) _isSwitchingAudio = false;
       }
   }
@@ -301,7 +324,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                     child: Column(
                       children: [
                          Text(
-                          pt.nextPrayerName,
+                          _calculatedNextPrayerName ?? pt.nextPrayerName,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -328,7 +351,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                             color: AppColors.primary.withOpacity(0.1),
                           ),
                           child: Text(
-                            "Next Prayer at ${pt.nextPrayerTime}",
+                            "Next Prayer at ${_calculatedNextPrayerTime ?? pt.nextPrayerTime}",
                             style: const TextStyle(color: AppColors.primary),
                           ),
                         ),
@@ -373,7 +396,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   }
 
   Widget _buildPrayerRow(String english, String time, String arabic) {
-    bool isNext = english == _prayerTimes?.nextPrayerName;
+    bool isNext = english == (_calculatedNextPrayerName ?? _prayerTimes?.nextPrayerName);
     bool isPlayingThis = _playingPrayer == english;
     
     return Container(

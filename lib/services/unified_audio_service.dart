@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -22,9 +24,24 @@ class UnifiedAudioService with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
   }
 
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  AudioPlayer? _audioPlayer;
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
   
+  // Proxy Stream Controllers to persist across player instance changes
+  final StreamController<PlayerState> _playerStateController = StreamController<PlayerState>.broadcast();
+  final StreamController<Duration> _positionController = StreamController<Duration>.broadcast();
+  final StreamController<Duration?> _durationController = StreamController<Duration?>.broadcast();
+  
+  StreamSubscription? _playerStateSubscription;
+  StreamSubscription? _positionSubscription;
+  StreamSubscription? _durationSubscription;
+
+  // Lifecycle Guards
+  int _playbackSessionId = 0; // The surgical fix for race conditions
+  int _lastCompletionEventTime = 0;
+  bool _isTransitioning = false;
+  bool _completionHandled = false;
+
   // Voice Preferences
   static const String _prefVoiceKey = 'selected_voice_key';
   static const String _prefVoiceSetKey = 'voice_explicitly_set';
@@ -34,46 +51,122 @@ class UnifiedAudioService with WidgetsBindingObserver {
   String _currentQuranReciter = 'sudais'; // For Quran
   bool _isVoiceExplicitlySet = false;
 
-  // State
-  bool _isPlaying = false;
-  String? _currentAsset; 
+  // Timestamp Data Cache
+  final Map<int, List<AyahSegment>> _ayahTimestampCache = {};
 
-  bool get isPlaying => _isPlaying;
+  // State
+  String? _currentAsset; 
+  int? _currentSurahId;
+
+  bool get isPlaying => _audioPlayer?.playing ?? false;
+  bool get isTransitioning => _isTransitioning;
   String? get currentAsset => _currentAsset;
   String get currentVoice => _currentVoice;
   String get currentQuranReciter => _currentQuranReciter;
   bool get isVoiceExplicitlySet => _isVoiceExplicitlySet;
+  int? get currentSurahId => _currentSurahId;
   
-  Stream<void> get onPlayerComplete => _audioPlayer.onPlayerComplete;
-  Stream<PlayerState> get onPlayerStateChanged => _audioPlayer.onPlayerStateChanged;
+  // Stream Getters (Proxied via Controllers)
+  Stream<void> get onPlayerComplete => _playerStateController.stream
+      .where((state) => state.processingState == ProcessingState.completed)
+      .map((_) => null);
+
+  Stream<PlayerState> get onPlayerStateChanged => _playerStateController.stream;
+  Stream<Duration> get onPositionChanged => _positionController.stream;
+  Stream<Duration?> get onDurationChanged => _durationController.stream;
 
   final ValueNotifier<bool> downloadingNotifier = ValueNotifier(false);
+  final ValueNotifier<bool> transitioningNotifier = ValueNotifier(false);
+  final ValueNotifier<int?> surahChangedNotifier = ValueNotifier(null);
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Audio continues in background as per user requirement.
-    // Logic removed.
-  }
+  void didChangeAppLifecycleState(AppLifecycleState state) {}
 
   Future<void> init() async {
+    final session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration.speech());
+    
     final prefs = await SharedPreferences.getInstance();
     _currentVoice = prefs.getString(_prefVoiceKey) ?? 'makkah';
     _currentQuranReciter = prefs.getString(_prefQuranReciterKey) ?? 'sudais';
     _isVoiceExplicitlySet = prefs.getBool(_prefVoiceSetKey) ?? false;
     
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      _isPlaying = state == PlayerState.playing;
-    });
-    
-    _audioPlayer.onPlayerComplete.listen((event) {
-      _isPlaying = false;
-      _currentAsset = null;
-    });
-    
     await _initNotificationChannel();
     tz.initializeTimeZones();
   }
+
+  Future<void> _ensurePlayerInitialized() async {
+    if (_audioPlayer != null) return;
+    
+    debugPrint("UnifiedAudioService: Initializing Persistent AudioPlayer instance.");
+    final player = AudioPlayer();
+    _audioPlayer = player;
+    
+    // Wire up proxy streams with persistent subscription
+    // We use the stream controllers to broadcast values regardless of internal state
+    _playerStateSubscription = player.playerStateStream.listen((state) {
+        _playerStateController.add(state);
+        
+        // Handle completion logic internally using the LATEST session ID
+        if (state.processingState == ProcessingState.completed && !_completionHandled) {
+           final now = DateTime.now().millisecondsSinceEpoch;
+           if (now - _lastCompletionEventTime > 2000) {
+              _lastCompletionEventTime = now;
+              _onPlaybackComplete(_playbackSessionId); 
+           }
+        }
+    });
+
+    _positionSubscription = player.positionStream.listen((pos) {
+        _positionController.add(pos);
+    });
+
+    _durationSubscription = player.durationStream.listen((dur) {
+        _durationController.add(dur);
+    });
+  }
   
+  Future<void> _onPlaybackComplete(int completedSessionId) async {
+      // 1. ATOMIC GUARD: Fire once and only once
+      if (_completionHandled) return;
+      
+      // 2. SESSION GUARD: Is this still the active session?
+      if (_playbackSessionId != completedSessionId) {
+        debugPrint("UnifiedAudioService: Completion ignored - session ID mismatch ($completedSessionId vs $_playbackSessionId)");
+        return;
+      }
+      
+      _completionHandled = true;
+      
+      // 3. Capture LOCALLY to survive the await stop() which clears global state
+      final currentId = _currentSurahId;
+
+      if (currentId != null && currentId < 114) {
+        debugPrint("UnifiedAudioService: Surah $currentId complete. Advancing to ${currentId + 1}");
+        
+        _isTransitioning = true;
+        transitioningNotifier.value = true;
+        
+        // 4. AWAIT FULL STOP (Fresh Player Pattern)
+        await stop();
+        
+        // 5. Small delay for OS audio settlement
+        await Future.delayed(const Duration(milliseconds: 400));
+        
+        // 6. Begin new surah using CAPTURED ID (which will increment session ID again)
+        await playSurah(currentId + 1);
+        
+      } else {
+        debugPrint("UnifiedAudioService: Playback finished (End of Quran or manual stop)");
+        await stop();
+        _currentAsset = null;
+        _currentSurahId = null;
+        _isTransitioning = false;
+        transitioningNotifier.value = false;
+        _completionHandled = false; 
+      }
+  }
+
   Future<void> _initNotificationChannel() async {
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
@@ -84,45 +177,75 @@ class UnifiedAudioService with WidgetsBindingObserver {
     const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
     
     await _notificationsPlugin.initialize(settings);
+
+    const androidAdhanChannel = AndroidNotificationChannel(
+        'adhan_channel_v1',
+        'Adhan Notifications',
+        description: 'Critical notifications for prayer times',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('adhan_makkah'),
+    );
+
+    await _notificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(androidAdhanChannel);
   }
   
   Future<bool> requestNotificationPermissions() async {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       final bool? result = await _notificationsPlugin
           .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
+          ?.requestPermissions(alert: true, badge: true, sound: true);
       return result ?? false;
     } else if (defaultTargetPlatform == TargetPlatform.android) {
-        final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+       final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
             _notificationsPlugin.resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin>();
-        
-        final bool? granted = await androidImplementation?.requestNotificationsPermission();
-        return granted ?? false;
+        return await androidImplementation?.requestNotificationsPermission() ?? false;
     }
     return false;
   }
 
   Future<void> playAdhan() async {
-    await _stopInternal(); 
+    await stop(); 
     await _playAdhanInternal(false);
   }
   
   Future<void> playAdhanWithFade() async {
-    await _stopInternal();
+    await stop();
     await _playAdhanInternal(true);
   }
 
+  Future<void> playAdhanCue() async {
+    // 1. INVALIDATE IMMEDIATELY
+    _playbackSessionId++;
+    final int currentSession = _playbackSessionId; 
+    
+    // 2. STOP GENTLY
+    if (_audioPlayer != null) {
+      try {
+        await _audioPlayer!.stop();
+      } catch (e) {
+        debugPrint("UnifiedAudioService: Adhan stop error - $e");
+      }
+    }
+
+    // 4. GUARD
+    if (_playbackSessionId != currentSession) return;
+
+    await _playAdhanInternal(true);
+    
+    Future.delayed(const Duration(seconds: 10), () async {
+       if (_playbackSessionId == currentSession && _audioPlayer != null && _audioPlayer!.playing && _currentAsset != null && _currentAsset!.contains('audio/Adhan')) {
+          debugPrint("UnifiedAudioService: Auto-stopping Adhan cue.");
+          await stop();
+       }
+    });
+  }
+
   Future<void> _playAdhanInternal(bool fade) async {
-    final methodStartTime = DateTime.now();
-
-    // Guard: If Stop was pressed very recently (race condition from UI toggle), abort.
-    if (_lastStopRequest.isAfter(methodStartTime)) return;
-
+    final int currentSession = _playbackSessionId;
     String filename;
     switch (_currentVoice.toLowerCase()) {
       case 'madinah': filename = 'Madinah'; break;
@@ -131,183 +254,174 @@ class UnifiedAudioService with WidgetsBindingObserver {
       default: filename = 'Makkah'; break;
     }
     
-    final assetPath = 'audio/Adhan/$filename.mp3';
-    debugPrint("UnifiedAudioService: Attempting to play $assetPath (Fade: $fade)");
+    final assetPath = 'assets/audio/Adhan/$filename.mp3'; 
+    debugPrint("UnifiedAudioService: Attempting to play $assetPath (Fade: $fade, Session: $currentSession)");
 
     try {
+      await _ensurePlayerInitialized();
+      if (_playbackSessionId != currentSession) return;
+
       if (fade) {
-        await _audioPlayer.setVolume(0.1); 
+        await _audioPlayer?.setVolume(0.1); 
       } else {
-        await _audioPlayer.setVolume(1.0);
+        await _audioPlayer?.setVolume(1.0);
       }
       
-      // Re-check interruption before actual play
-      if (_lastStopRequest.isAfter(methodStartTime)) {
-         debugPrint("UnifiedAudioService: Adhan cancelled by stop request.");
-         return;
-      }
-      
-      await _audioPlayer.play(AssetSource(assetPath));
+      await _audioPlayer?.setAudioSource(AudioSource.asset('audio/Adhan/$filename.mp3'));
+      if (_playbackSessionId != currentSession) return;
+
       _currentAsset = assetPath;
+      await _audioPlayer?.play();
       
       if (fade) {
-        // Ramp up volume over 2 seconds
-        _volumeTimer?.cancel();
-        double volume = 0.1;
-        _volumeTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
-          if (_lastStopRequest.isAfter(methodStartTime)) {
-             timer.cancel();
-             return;
-          }
-          volume += 0.1;
-          if (volume >= 1.0) {
-            volume = 1.0;
-            _audioPlayer.setVolume(1.0);
-            timer.cancel();
-          } else {
-            _audioPlayer.setVolume(volume);
-          }
-        });
+        _startVolumeRamp(currentSession);
       }
     } catch (e) {
       debugPrint("UnifiedAudioService: Error playing Adhan - $e");
     }
   }
 
-  http.Client? _activeDownloadClient;
   Timer? _volumeTimer;
-  DateTime _lastStopRequest = DateTime.fromMillisecondsSinceEpoch(0);
 
-  Future<void> playSurah(int surahId, {int? ayahNumber}) async {
-    // 1. Pre-emptive Switch: Stop anything currently playing or downloading
-    await stop(); 
-    
-    // 2. Start a fresh lifecycle for this request
-    _activeDownloadClient = http.Client();
-    final methodStartTime = DateTime.now();
-
-    try {
-      downloadingNotifier.value = true; // Lock UI spinner
-      
-      // Gentle fade-in start volume
-      await _audioPlayer.setVolume(0.1); 
-
-      final formattedId = surahId.toString().padLeft(3, '0');
-      final fileName = 'surah_${formattedId}_$_currentQuranReciter.mp3';
-
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/$fileName');
-      final tempFile = File('${dir.path}/$fileName.temp');
-
-      // Sync check: was stop requested while we were setting up?
-      if (_lastStopRequest.isAfter(methodStartTime)) return;
-
-      if (await file.exists()) {
-        await _audioPlayer.play(DeviceFileSource(file.path));
-        _currentAsset = file.path;
+  void _startVolumeRamp(int sessionId) {
+    _volumeTimer?.cancel();
+    double volume = 0.1;
+    _volumeTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      if (_playbackSessionId != sessionId || _audioPlayer == null || !_audioPlayer!.playing) {
+         timer.cancel();
+         return;
+      }
+      volume += 0.1;
+      if (volume >= 1.0) {
+        volume = 1.0;
+        _audioPlayer?.setVolume(1.0);
+        timer.cancel();
       } else {
-        // Dynamic reciter path logic
-        String baseUrl = 'https://download.quranicaudio.com/quran/abdurrahmaan_as-sudays/';
-        switch (_currentQuranReciter) {
-          case 'saad':
-            baseUrl = 'https://download.quranicaudio.com/quran/sa3d_al-ghaamidi/complete/';
-            break;
-          case 'mishary':
-            baseUrl = 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/';
-            break;
-          default:
-            baseUrl = 'https://download.quranicaudio.com/quran/abdurrahmaan_as-sudays/';
-            break;
-        }
+        _audioPlayer?.setVolume(volume);
+      }
+    });
+  }
 
-        final url = '$baseUrl$formattedId.mp3';
-        debugPrint("UnifiedAudioService: Downloading from $url");
-        
-        // Resumable Download Logic
-        int startByte = 0;
-        if (await tempFile.exists()) {
-          startByte = await tempFile.length();
-        }
+  Future<void> playSurah(int surahId, {int? ayahNumber, Duration? fromPosition}) async {
+    // 1. INVALIDATE IMMEDIATELY & NOTIFY UI EARLY
+    _playbackSessionId++; 
+    final int currentSession = _playbackSessionId;
+    _currentSurahId = surahId;
+    
+    debugPrint("TRACE: UnifiedAudioService.playSurah($surahId) - SETTING NOTIFIER EARLY");
+    surahChangedNotifier.value = surahId; 
+    
+    debugPrint("TRACE: UnifiedAudioService.playSurah($surahId) - SESSION $currentSession START");
 
-        final headers = startByte > 0 ? {'Range': 'bytes=$startByte-'} : <String, String>{};
-        
-        // Use the managed client for pre-emptive cancellation
-        final response = await _activeDownloadClient!.get(Uri.parse(url), headers: headers);
-        
-        if (_lastStopRequest.isAfter(methodStartTime)) return;
+    // 🛑 FIX: Reuse Player instance 🛑
+    // instead of disposing and recreating, we just stop and set a new source.
+    if (_audioPlayer != null) {
+      try {
+        await _audioPlayer!.stop();
+      } catch (e) {
+        debugPrint("UnifiedAudioService: Warning - Old player stop failed (Ignored): $e");
+      }
+    }
 
-        if (response.statusCode == 200 || response.statusCode == 206) {
-          final mode = (response.statusCode == 206) ? FileMode.append : FileMode.write;
-          final raf = await tempFile.open(mode: mode);
-          await raf.writeFrom(response.bodyBytes);
-          await raf.close();
-          
-          await tempFile.rename(file.path);
+    _completionHandled = false; 
 
-          // Verify again before playing
-          if (_lastStopRequest.isAfter(methodStartTime)) return;
+    // 3. GUARD: Did we get superseded during the stop?
+    if (_playbackSessionId != currentSession) {
+       debugPrint("UnifiedAudioService: Session $currentSession aborted before allocation.");
+       return;
+    }
+    
+    try {
+      downloadingNotifier.value = true;
+      
+      // 4. ENSURE INITIALIZED
+      await _ensurePlayerInitialized();
+      
+      if (_playbackSessionId != currentSession) return;
 
-          await _audioPlayer.play(DeviceFileSource(file.path));
-          _currentAsset = file.path;
-        } else if (response.statusCode == 416) {
-           debugPrint("UnifiedAudioService: Range error 416. Resetting.");
-           await tempFile.delete(); 
-           return;
-        } else {
-          debugPrint("UnifiedAudioService: Failed to download - ${response.statusCode}");
-          return;
-        }
+      await _audioPlayer?.setVolume(0.1); 
+
+      // Reciter Logic
+      String baseUrl = 'https://download.quranicaudio.com/qdc/abdurrahmaan_as_sudais/murattal/';
+      String fileNameForUrl = surahId.toString(); 
+
+      switch (_currentQuranReciter) {
+        case 'saad':
+          baseUrl = 'https://download.quranicaudio.com/qdc/saad_al_ghamidi/murattal/';
+          break;
+        case 'mishary':
+          baseUrl = 'https://download.quranicaudio.com/qdc/mishari_alafasy/murattal/';
+          break;
+        default:
+          baseUrl = 'https://download.quranicaudio.com/qdc/abdurrahmaan_as_sudais/murattal/';
+          break;
       }
 
-      // Gentle Fade-In Effect
-      _volumeTimer?.cancel();
-      double volume = 0.1;
-      _volumeTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-        if (_lastStopRequest.isAfter(methodStartTime)) {
-           timer.cancel();
-           return;
-        }
-        volume += 0.1;
-        if (volume >= 1.0) {
-          volume = 1.0;
-          _audioPlayer.setVolume(1.0);
-          timer.cancel();
-        } else {
-          _audioPlayer.setVolume(volume);
-        }
-      });
+      final url = '$baseUrl$fileNameForUrl.mp3';
+      debugPrint("UnifiedAudioService: Session $currentSession loading from $url");
+      
+      // 4. Load source (Async)
+      await _audioPlayer?.setAudioSource(
+          AudioSource.uri(Uri.parse(url)),
+          initialPosition: fromPosition ?? Duration.zero,
+      );
+      
+      // 5. GUARD: Did another request come in during long load?
+      if (_playbackSessionId != currentSession) {
+         debugPrint("UnifiedAudioService: Session $currentSession superseded after load.");
+         return;
+      }
+
+      _currentAsset = url;
+      _isTransitioning = false; 
+      
+      await _audioPlayer?.play();
+      _startVolumeRamp(currentSession);
       
     } catch (e) {
-      if (e is http.ClientException || e.toString().contains('closed')) {
-        debugPrint("UnifiedAudioService: Request cancelled by user action.");
-      } else {
-        debugPrint("UnifiedAudioService: Error in playSurah - $e");
-      }
+      debugPrint("UnifiedAudioService: Error in Session $currentSession - $e");
     } finally {
-      downloadingNotifier.value = false;
+      if (_playbackSessionId == currentSession) {
+        _isTransitioning = false;
+        transitioningNotifier.value = false;
+        downloadingNotifier.value = false;
+      }
     }
   }
-  
 
-
-  Future<void> stop() async {
-    debugPrint("UnifiedAudioService: STOP requested");
-    _lastStopRequest = DateTime.now();
-    await _stopInternal();
+  Future<void> pause() async {
+    await _audioPlayer?.pause();
   }
 
-  Future<void> _stopInternal() async {
+  Future<void> resume() async {
+    if (_audioPlayer != null && _audioPlayer!.processingState != ProcessingState.idle) {
+      await _audioPlayer!.play();
+    }
+  }
+
+  Future<void> stop() async {
+    // 1. INVALIDATE IMMEDIATELY
+    _playbackSessionId++; 
     _volumeTimer?.cancel();
-    _activeDownloadClient?.close();
-    _activeDownloadClient = null;
-    await _audioPlayer.stop();
-    _isPlaying = false;
-    _currentAsset = null;
+    _isTransitioning = false;
+    transitioningNotifier.value = false;
     downloadingNotifier.value = false;
+
+    if (_audioPlayer != null) {
+      try {
+        await _audioPlayer!.stop();
+        // Clear source only if strictly necessary, but stop is usually enough
+      } catch (e) {
+        debugPrint("UnifiedAudioService: stop error - $e");
+      }
+    }
+
+    _currentAsset = null;
+    _currentSurahId = null;
+    _completionHandled = false;
   }
 
   Future<void> setVoice(String voice) async {
-    // This now strictly controls ADHAN voice
     _currentVoice = voice;
     _isVoiceExplicitlySet = true;
     final prefs = await SharedPreferences.getInstance();
@@ -316,50 +430,118 @@ class UnifiedAudioService with WidgetsBindingObserver {
   }
 
   Future<void> setQuranReciter(String reciterId) async {
-    // This controls QURAN reciter
     _currentQuranReciter = reciterId;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefQuranReciterKey, reciterId);
   }
   
-  /// Schedules notifications for all provided prayer times
   Future<void> scheduleAdhanNotifications(Map<String, DateTime> prayerTimes) async {
-    await _notificationsPlugin.cancelAll(); // Clear old logic
+    await _notificationsPlugin.cancelAll(); 
     
     final String currentTimeZone = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(currentTimeZone));
     
-    int id = 1;
+    int id = 100;
     for (var entry in prayerTimes.entries) {
       final prayerName = entry.key;
       final scheduledTime = entry.value;
-      
-      if (scheduledTime.isBefore(DateTime.now())) continue; // Skip past times
-      
-      final tzTime = tz.TZDateTime.from(scheduledTime, tz.local);
-      
+      if (scheduledTime.isBefore(DateTime.now())) continue; 
+
+      final reminderTime = scheduledTime.subtract(const Duration(minutes: 5));
+      if (reminderTime.isAfter(DateTime.now())) {
+          await _notificationsPlugin.zonedSchedule(
+            id++,
+            'Upcoming: $prayerName',
+            'Prayer starts in 5 minutes.',
+            tz.TZDateTime.from(reminderTime, tz.local),
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'reminder_channel',
+                'Prayer Reminders',
+                 channelDescription: '5-minute warnings before prayer',
+                 importance: Importance.high, 
+                 priority: Priority.high,
+              ),
+              iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+            ),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          );
+      }
+
       await _notificationsPlugin.zonedSchedule(
         id++,
-        '$prayerName Prayer',
-        'It is time for $prayerName.',
-        tzTime,
-        NotificationDetails(
+        '$prayerName Prayer Time',
+        'Al-Adhan: High quality recitation',
+        tz.TZDateTime.from(scheduledTime, tz.local),
+        const NotificationDetails(
           android: AndroidNotificationDetails(
-            'adhan_channel',
+            'adhan_channel_v1',
             'Adhan Notifications',
-             channelDescription: 'Gentle reminders for prayer times',
-             importance: Importance.high, 
-             priority: Priority.high,
+             channelDescription: 'Plays Adhan sound at prayer time',
+             importance: Importance.max, 
+             priority: Priority.max,
+             sound: RawResourceAndroidNotificationSound('adhan_makkah'),
+             fullScreenIntent: true,
           ),
-          iOS: DarwinNotificationDetails(presentSound: true),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentSound: true,
+            sound: 'adhan_makkah.aiff',
+          ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
-      debugPrint("Scheduled Adhan for $prayerName at $tzTime");
     }
   }
 
   List<String> getAvailableVoices() {
     return ['makkah', 'madinah', 'quds'];
   }
+
+  Future<List<AyahSegment>> getAyahTimestamps(int surahId) async {
+    if (_ayahTimestampCache.containsKey(surahId)) {
+      return _ayahTimestampCache[surahId]!;
+    }
+
+    try {
+      debugPrint("UnifiedAudioService: Fetching precision timestamps for Surah $surahId...");
+      final url = 'https://api.quran.com/api/v4/chapter_recitations/3/$surahId?segments=true';
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> timestampData = data['audio_file']['timestamps'];
+        
+        final List<AyahSegment> segments = timestampData.map((t) {
+          final parts = t['verse_key'].toString().split(':');
+          final ayahNum = int.parse(parts[1]);
+          
+          return AyahSegment(
+            ayahNumber: ayahNum,
+            timestampFrom: t['timestamp_from'],
+            timestampTo: t['timestamp_to'],
+          );
+        }).toList();
+
+        _ayahTimestampCache[surahId] = segments;
+        return segments;
+      }
+    } catch (e) {
+      debugPrint("UnifiedAudioService: Error fetching timestamps: $e");
+    }
+
+    return [];
+  }
+}
+
+class AyahSegment {
+  final int ayahNumber;
+  final int timestampFrom; // in milliseconds
+  final int timestampTo; // in milliseconds
+
+  AyahSegment({
+    required this.ayahNumber,
+    required this.timestampFrom,
+    required this.timestampTo,
+  });
 }

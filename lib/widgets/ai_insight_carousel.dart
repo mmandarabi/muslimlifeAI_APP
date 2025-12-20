@@ -123,32 +123,39 @@ class _AIInsightCarouselState extends State<AIInsightCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 330, 
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-              });
-            },
-            itemCount: _insights.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: AIInsightCard(
-                  insight: _insights[index],
-                  onNext: index < _insights.length - 1 ? _nextPage : null,
-                  onPrevious: index > 0 ? _previousPage : null,
-                  isLoading: _isLoading && index == 0,
-                ),
-              );
-            },
+    // Lock text scaling to 1.0 for the carousel to prevent layout break on high system font settings
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: 280,
+              maxHeight: 400, // Safe range for locked scaling
+            ),
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                });
+              },
+              itemCount: _insights.length,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: AIInsightCard(
+                    insight: _insights[index],
+                    onNext: index < _insights.length - 1 ? _nextPage : null,
+                    onPrevious: index > 0 ? _previousPage : null,
+                    isLoading: _isLoading && index == 0,
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
         // Dot Indicators
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -168,8 +175,9 @@ class _AIInsightCarouselState extends State<AIInsightCarousel> {
           }),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 }
 
 class AIInsightCard extends StatelessWidget {
@@ -233,13 +241,14 @@ class AIInsightCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
 
-                // Body Text
-                // Body Text (Scrollable to prevent overflow)
-                Expanded(
+                // Body Text (Scrollable to prevent overflow, restricted height for stability)
+                Flexible(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
                     child: Text(
                       insight['text'] ?? "",
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.white70,
                             height: 1.5,
@@ -249,7 +258,7 @@ class AIInsightCard extends StatelessWidget {
                   ),
                 ),
                 
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 
                 // Buttons Row
                 Row(

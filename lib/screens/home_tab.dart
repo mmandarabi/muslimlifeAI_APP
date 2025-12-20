@@ -112,24 +112,30 @@ class _HomeTabState extends State<HomeTab> {
               // BOX 1: CURRENT TIME
               Expanded(
                 child: GlassCard(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        "Now",
-                        style: GoogleFonts.poppins(color: Colors.white54, fontSize: 14),
+                      const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          "Now",
+                          style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.w400),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       StreamBuilder(
                         stream: Stream.periodic(const Duration(seconds: 1)),
                         builder: (context, snapshot) {
-                          return Text(
-                            DateFormat('h:mm a').format(DateTime.now()),
-                            style: GoogleFonts.poppins(
-                              fontSize: 24, // Adjusted for fit
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                          return FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              DateFormat('h:mm a').format(DateTime.now()),
+                              style: GoogleFonts.poppins(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           );
                         },
@@ -151,23 +157,29 @@ class _HomeTabState extends State<HomeTab> {
                     );
                   },
                   child: GlassCard(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
                     child: _isLoading
                         ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)))
                         : Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                "Next: ${_prayerTimes?.nextPrayer ?? '--'}",
-                                style: GoogleFonts.poppins(color: AppColors.primary, fontSize: 14),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  "Next: ${_prayerTimes?.nextPrayer ?? '--'}",
+                                  style: const TextStyle(color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w500),
+                                ),
                               ),
                               const SizedBox(height: 8),
-                              Text(
-                                _formatTo12Hour(_prayerTimes?.nextPrayerTime),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  _formatTo12Hour(_prayerTimes?.nextPrayerTime),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ],

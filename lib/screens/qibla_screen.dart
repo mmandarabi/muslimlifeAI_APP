@@ -283,8 +283,12 @@ class _CompassUIState extends State<_CompassUI> {
     // Screen Up = 0.
     // Qibla relative to Screen = Qibla - Heading.
     final needleRotation = (widget.qiblaDirection - widget.heading) * (math.pi / 180);
+    final mediaQuery = MediaQuery.of(context);
 
-    return Scaffold(
+    // Lock text scaling to 1.0 for the compass UI to prevent overlap and layout breaks
+    return MediaQuery(
+      data: mediaQuery.copyWith(textScaleFactor: 1.0),
+      child: Scaffold(
       backgroundColor: const Color(0xFF0B0C0E),
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -407,15 +411,18 @@ class _CompassUIState extends State<_CompassUI> {
                    const SizedBox(height: 40),
 
                    // 3. Info Cards
-                   Row(
-                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                     children: [
-                       _buildInfoBadge("QIBLA", "${widget.qiblaDirection.toStringAsFixed(0)}°"),
-                       _buildInfoBadge("DISTANCE", "${widget.distanceInKm.round()} km"),
-                       _buildInfoBadge("ACCURACY", widget.accuracy < 15 ? "High" : "Low", 
-                         color: widget.accuracy < 15 ? Colors.green : Colors.orange
-                       ),
-                     ],
+                   Padding(
+                     padding: const EdgeInsets.symmetric(horizontal: 20),
+                     child: Row(
+                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                       children: [
+                         Flexible(child: _buildInfoBadge("QIBLA", "${widget.qiblaDirection.toStringAsFixed(0)}°")),
+                         Flexible(child: _buildInfoBadge("DISTANCE", "${widget.distanceInKm.round()} km")),
+                         Flexible(child: _buildInfoBadge("ACCURACY", widget.accuracy < 15 ? "High" : "Low", 
+                           color: widget.accuracy < 15 ? Colors.green : Colors.orange
+                         )),
+                       ],
+                     ),
                    )
                 ],
               ),
@@ -439,8 +446,9 @@ class _CompassUIState extends State<_CompassUI> {
               )
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFallbackDial() {
     return Container(
@@ -474,10 +482,22 @@ class _CompassUIState extends State<_CompassUI> {
   
   Widget _buildInfoBadge(String label, String value, {Color color = Colors.white}) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 1.5)),
+        Text(
+          label, 
+          style: const TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 1.5),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value, 
+            style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
       ],
     );
   }
