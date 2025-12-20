@@ -121,11 +121,6 @@ class _QuranReadModeState extends State<QuranReadMode> {
   void _onThemeChanged() {
     if (mounted) setState(() {});
   }
-        setState(() => _currentPosition = pos);
-        _updateActiveAyah();
-      }
-    });
-  }
 
 
   @override
