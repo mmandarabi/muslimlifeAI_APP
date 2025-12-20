@@ -32,6 +32,10 @@
 		<string>This app needs access to your location to calculate the Qibla direction.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>This app needs access to your location to calculate the Qibla direction.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>This app does not require microphone access but a dependency includes references to it.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>This app does not require photo library access but a dependency includes references to it.</string>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>UILaunchStoryboardName</key>
