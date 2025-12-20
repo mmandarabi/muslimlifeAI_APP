@@ -7,11 +7,13 @@ import 'package:muslim_life_ai_demo/screens/dashboard_screen.dart';
 import 'package:muslim_life_ai_demo/screens/intro_screen.dart';
 import 'package:muslim_life_ai_demo/screens/landing_page.dart';
 import 'package:muslim_life_ai_demo/theme/app_theme.dart';
+import 'package:muslim_life_ai_demo/services/theme_service.dart';
 
 import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ThemeService().init();
 
   // Initialize Firebase
   await Firebase.initializeApp(
@@ -49,49 +51,56 @@ class MuslimLifeAIApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MuslimLife AI',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          debugPrint("Auth State Chain: ${snapshot.connectionState} | HasData: ${snapshot.hasData} | Error: ${snapshot.error}");
-          
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              backgroundColor: Color(0xFF0B0C0E),
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
+    return ListenableBuilder(
+      listenable: ThemeService(),
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'MuslimLife AI',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeService().themeMode,
+          home: StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              debugPrint("Auth State Chain: ${snapshot.connectionState} | HasData: ${snapshot.hasData} | Error: ${snapshot.error}");
+              
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  backgroundColor: Color(0xFF0B0C0E),
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
 
-          if (snapshot.hasError) {
-             return Scaffold(
-              backgroundColor: const Color(0xFF0B0C0E),
-              body: Center(
-                child: Text(
-                  "Auth Error: ${snapshot.error}",
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ),
-            );
-          }
+              if (snapshot.hasError) {
+                 return Scaffold(
+                  backgroundColor: const Color(0xFF0B0C0E),
+                  body: Center(
+                    child: Text(
+                      "Auth Error: ${snapshot.error}",
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                );
+              }
 
-          if (snapshot.hasData) {
-            debugPrint("User detected: ${snapshot.data?.uid}");
-            return const DashboardScreen();
-          }
+              if (snapshot.hasData) {
+                debugPrint("User detected: ${snapshot.data?.uid}");
+                return const DashboardScreen();
+              }
 
-          debugPrint("No user detected. Showing Landing/Intro.");
-          if (kIsWeb) {
-            return const LandingPage();
-          } else {
-            return const IntroScreen();
-          }
-        },
-      ),
+              debugPrint("No user detected. Showing Landing/Intro.");
+              if (kIsWeb) {
+                return const LandingPage();
+              } else {
+                return const IntroScreen();
+              }
+            },
+          ),
+        );
+      },
     );
   }
 }

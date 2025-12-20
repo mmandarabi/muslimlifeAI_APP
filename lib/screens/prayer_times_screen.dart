@@ -270,7 +270,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 center: const Alignment(-0.2, -0.6),
                 radius: 1.5,
                 colors: [
-                  accentColor,
+                  isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4), // Sanctuary Pulse
                   backgroundColor,
                 ],
                 stops: const [0.0, 0.7],

@@ -11,6 +11,7 @@ import 'package:muslim_life_ai_demo/screens/quran_home_screen.dart';
 import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
 import 'package:muslim_life_ai_demo/widgets/grid_painter.dart';
+import 'package:muslim_life_ai_demo/services/theme_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -57,7 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   center: const Alignment(-0.2, -0.6),
                   radius: 1.5,
                   colors: [
-                    accentColor,
+                    isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4), // Sanctuary Gray (Light) / Dark Accent
                     backgroundColor,
                   ],
                   stops: const [0.0, 0.7],
@@ -72,13 +73,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
               painter: GridPainter(
                 opacity: isDark ? 0.03 : 0.015, 
                 spacing: 60,
-                color: isDark ? Colors.white : Colors.black,
+                color: isDark ? Colors.white : Colors.black, // Explicit for contrast
               ),
             ),
           ),
           
           // Main Content
           _screens[_selectedIndex],
+
+          // Global Theme Toggle
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            right: 20,
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                ThemeService().toggleTheme();
+              },
+              child: GlassCard(
+                borderRadius: 16,
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  isDark ? LucideIcons.sun : LucideIcons.moon,
+                  color: isDark ? Colors.white : Colors.black,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: Container(

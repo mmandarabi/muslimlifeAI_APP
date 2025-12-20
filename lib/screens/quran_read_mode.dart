@@ -15,6 +15,7 @@ import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:muslim_life_ai_demo/data/reciter_manifest.dart';
 import 'package:muslim_life_ai_demo/services/quran_page_service.dart';
+import 'package:muslim_life_ai_demo/services/theme_service.dart';
 
 // Precision Timing: Deterministic Sync
 
@@ -47,7 +48,6 @@ class _QuranReadModeState extends State<QuranReadMode> {
   late String _currentSurahName;
   bool _isPlaying = false;
   bool _isDownloading = false;
-  bool _isLightMode = false;
   double _fontSize = 20.0;
   int? _activeAyahId;
   Duration _currentPosition = Duration.zero;
@@ -108,20 +108,29 @@ class _QuranReadModeState extends State<QuranReadMode> {
     // Audio Sync Listeners
     _positionSubscription = _audioService.onPositionChanged.listen((pos) {
       if (mounted && !_audioService.isTransitioning) {
+        // Sync logic
+        setState(() => _currentPosition = pos);
+        _syncVerseHighlight(pos);
+      }
+    });
+
+    // Initialize Theme Listener
+    ThemeService().addListener(_onThemeChanged);
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
         setState(() => _currentPosition = pos);
         _updateActiveAyah();
       }
     });
   }
 
-  bool _initialized = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_initialized) {
-      _isLightMode = Theme.of(context).brightness == Brightness.light;
-      _initialized = true;
-    }
   }
 
   @override
@@ -136,8 +145,8 @@ class _QuranReadModeState extends State<QuranReadMode> {
     
     // Disable Wakelock when leaving
     WakelockPlus.disable();
-    
     _audioService.stop(); // Stop audio and ABORT downloads when leaving
+    ThemeService().removeListener(_onThemeChanged);
     super.dispose();
   }
 
@@ -546,10 +555,10 @@ class _QuranReadModeState extends State<QuranReadMode> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = !_isLightMode;
-    final backgroundColor = _isLightMode ? AppColors.backgroundLight : AppColors.background;
-    final textColor = _isLightMode ? AppColors.textPrimaryLight : AppColors.textPrimaryDark;
-    final secondaryTextColor = _isLightMode ? AppColors.textSecondaryLight : AppColors.textSecondaryDark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? AppColors.background : AppColors.backgroundLight;
+    final textColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+    final secondaryTextColor = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
     final accentColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4);
 
     return Scaffold(
@@ -765,7 +774,7 @@ class _QuranReadModeState extends State<QuranReadMode> {
   }
 
   Widget _buildFloatingAudioCard(QuranSurah surah, Color textColor, Color secondaryTextColor) {
-    final isDark = !_isLightMode;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final tintColor = isDark ? Colors.white : Colors.black;
     final shadowColor = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.08);
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
@@ -988,12 +997,12 @@ class _QuranReadModeState extends State<QuranReadMode> {
             children: [
               // Theme Toggle
               _buildSettingRow(
-                icon: _isLightMode ? LucideIcons.moon : LucideIcons.sun,
+                icon: ThemeService().isLightMode ? LucideIcons.moon : LucideIcons.sun,
                 label: "Visual Theme",
                 trailing: Switch(
-                  value: _isLightMode,
+                  value: ThemeService().isLightMode,
                   onChanged: (val) {
-                    setState(() => _isLightMode = val);
+                    ThemeService().toggleTheme();
                     setModalState(() {});
                   },
                   activeColor: AppColors.primary,
@@ -1094,10 +1103,11 @@ class _QuranReadModeState extends State<QuranReadMode> {
   }
 
   Widget _buildAccessibilityControls(Color textColor, Color secondaryTextColor, QuranSurah surah) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       decoration: BoxDecoration(
-        color: _isLightMode ? Colors.white : const Color(0xFF141518),
+        color: isLight ? Colors.white : const Color(0xFF141518),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.2),
@@ -1432,7 +1442,8 @@ class _QuranReadModeState extends State<QuranReadMode> {
     // High-Fidelity Mushaf Cartouche
     final accentColor = AppColors.primary; // Digital Sanctuary Green
     final frameColor = accentColor.withValues(alpha: 0.6);
-    final bgColor = _isLightMode ? const Color(0xFFFDFBF7) : const Color(0xFF0B0C0E);
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final bgColor = isLight ? const Color(0xFFFDFBF7) : const Color(0xFF0B0C0E);
 
     return Container(
       width: double.infinity,

@@ -344,7 +344,7 @@ class _CompassUIState extends State<_CompassUI> {
                   center: Alignment.topCenter,
                   radius: 1.5,
                   colors: [
-                    accentColor,
+                    isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4),
                     backgroundColor,
                   ],
                 ),

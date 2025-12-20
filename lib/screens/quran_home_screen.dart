@@ -415,7 +415,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                                         children: [
                                           if (showHeader) _buildJuzHeader(currentJuz),
                                           _buildRefinedSurahCard(context, surah),
-                                          const SizedBox(height: 12),
+                                          const SizedBox(height: 24),
                                         ],
                                       );
                                     },
@@ -446,7 +446,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   Widget _buildJuzHeader(int juz) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.only(top: 32, bottom: 12, left: 16, right: 16),
+      padding: const EdgeInsets.only(top: 56, bottom: 24, left: 24, right: 24),
       color: Colors.white.withValues(alpha: 0.02),
       child: Text(
         "JUZ $juz",
@@ -609,7 +609,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               // Surah Transliteration + Stats
               Row(
                 children: [
@@ -638,7 +638,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               // Bottom Row: Juz alignment + Page
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -673,11 +673,11 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               // Opening Hook Text
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
@@ -718,9 +718,12 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
       itemCount: filteredJuz.length + 1,
       itemBuilder: (context, index) {
         if (index == filteredJuz.length) return const SizedBox(height: 80);
-        final juz = filteredJuz[index];
-        return _buildRefinedJuzCard(context, juz);
-      },
+         final juz = filteredJuz[index];
+         return Padding(
+           padding: const EdgeInsets.only(bottom: 24),
+           child: _buildRefinedJuzCard(context, juz),
+         );
+       },
     );
   }
 
@@ -828,9 +831,18 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
     // Generate segments based on surahs present in the Juz
     // For the demo, if multiple surahs, we show a multi-color bar
     final segments = surahIds.map((_) => 1.0 / surahIds.length).toList();
+    
+    // Use distinct colors for composition clarity
+    final List<Color> compositionColors = [
+      AppColors.primary,
+      Colors.deepOrangeAccent,
+      Colors.amberAccent,
+      Colors.indigoAccent,
+      Colors.tealAccent,
+    ];
+
     final colors = surahIds.asMap().entries.map((entry) {
-        final opacity = 1.0 - (entry.key * 0.2).clamp(0.0, 0.7);
-        return AppColors.primary.withOpacity(opacity);
+        return compositionColors[entry.key % compositionColors.length];
     }).toList();
     
     String label = surahIds.length == 1 
