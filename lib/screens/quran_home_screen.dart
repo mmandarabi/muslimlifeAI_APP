@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:muslim_life_ai_demo/models/quran_display_names.dart';
@@ -200,17 +201,17 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
     });
   }
 
-  void _handleSurahTap(BuildContext context, int surahId, String surahName) {
+  void _handleSurahTap(BuildContext context, int surahId, String surahName, {int? initialPage}) {
     // Phase 1.5: Direct Read Mode - No more interruption for elders
-    _navigateToMode(context, true, surahId, surahName);
+    _navigateToMode(context, true, surahId, surahName, initialPage: initialPage);
   }
 
-  void _navigateToMode(BuildContext context, bool isReadMode, int surahId, String surahName) {
+  void _navigateToMode(BuildContext context, bool isReadMode, int surahId, String surahName, {int? initialPage}) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => isReadMode 
-          ? QuranReadMode(surahId: surahId, surahName: surahName) 
+          ? QuranReadMode(surahId: surahId, surahName: surahName, initialPage: initialPage) 
           : QuranScreen(surahId: surahId, surahName: surahName),
       ),
     );
@@ -343,76 +344,101 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = AppColors.getBackgroundColor(context);
+    final accentColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4);
+    final textColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 1. CUSTOM APP BAR (LIBRARY / SEARCH)
-            _buildLibraryAppBar(),
-
-            // 2. FILTER TABS (SURAH | JUZ)
-            _buildSegmentedFilters(),
-
-            const SizedBox(height: 16),
-
-            // 3. CONTENT AREA
-            Expanded(
-              child: _selectedTabIndex == 1
-                  ? const HadithScreen()
-                  : _isLoading 
-                    ? const Center(child: CircularProgressIndicator())
-                    : _isJuzMode
-                      ? _buildJuzList()
-                      : _filteredSurahs.isEmpty
-                        ? const Center(
-                            child: Text("No Surahs found matching your search.",
-                            style: TextStyle(color: Colors.white54)))
-                        : Stack(
-                            children: [
-                              ListView.builder(
-                                controller: _listScrollController,
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                itemCount: _filteredSurahs.length,
-                                itemBuilder: (context, index) {
-                                  final surah = _filteredSurahs[index];
-                                  final currentJuz = QuranPageService().getJuzNumber(surah.id, 1);
-                                  
-                                  bool showHeader = false;
-                                  if (index == 0) {
-                                    showHeader = true;
-                                  } else {
-                                    final prevSurah = _filteredSurahs[index - 1];
-                                    final prevJuz = QuranPageService().getJuzNumber(prevSurah.id, 1);
-                                    if (currentJuz != prevJuz) showHeader = true;
-                                  }
-
-                                  return Column(
-                                    children: [
-                                      if (showHeader) _buildJuzHeader(currentJuz),
-                                      _buildRefinedSurahCard(context, surah),
-                                      const SizedBox(height: 12),
-                                    ],
-                                  );
-                                },
-                              ),
-                              // Fast Scroll Strip (1-30) - PRESERVED
-                              Positioned(
-                                right: 4,
-                                top: 20,
-                                bottom: 20,
-                                child: _buildFastScrollStrip(),
-                              ),
-                              // Hover Bubble
-                              if (_hoveredJuz != null)
-                                Center(
-                                  child: _buildHoverBubble(),
-                                ),
-                            ],
-                          ),
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // Unified Sanctuary Gradient (Theme-Aware)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(-0.2, -0.6),
+                  radius: 1.5,
+                  colors: [
+                    accentColor,
+                    backgroundColor,
+                  ],
+                  stops: const [0.0, 0.7],
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                // 1. CUSTOM APP BAR (LIBRARY / SEARCH)
+                _buildLibraryAppBar(),
+
+                // 2. FILTER TABS (SURAH | JUZ)
+                _buildSegmentedFilters(),
+
+                const SizedBox(height: 16),
+
+                // 3. CONTENT AREA
+                Expanded(
+                  child: _selectedTabIndex == 1
+                      ? const HadithScreen()
+                      : _isLoading 
+                        ? const Center(child: CircularProgressIndicator())
+                        : _isJuzMode
+                          ? _buildJuzList()
+                          : _filteredSurahs.isEmpty
+                            ? Center(
+                                child: Text("No Surahs found matching your search.",
+                                style: TextStyle(color: textColor.withValues(alpha: 0.5))))
+                            : Stack(
+                                children: [
+                                    ListView.builder(
+                                      controller: _listScrollController,
+                                      padding: const EdgeInsets.only(left: 20, right: 56, top: 0, bottom: 20),
+                                    itemCount: _filteredSurahs.length,
+                                    itemBuilder: (context, index) {
+                                      final surah = _filteredSurahs[index];
+                                      final currentJuz = QuranPageService().getJuzNumber(surah.id, 1);
+                                      
+                                      bool showHeader = false;
+                                      if (index == 0) {
+                                        showHeader = true;
+                                      } else {
+                                        final prevSurah = _filteredSurahs[index - 1];
+                                        final prevJuz = QuranPageService().getJuzNumber(prevSurah.id, 1);
+                                        if (currentJuz != prevJuz) showHeader = true;
+                                      }
+
+                                      return Column(
+                                        children: [
+                                          if (showHeader) _buildJuzHeader(currentJuz),
+                                          _buildRefinedSurahCard(context, surah),
+                                          const SizedBox(height: 12),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  // Fast Scroll Strip (1-30) - PRESERVED & Adjusted
+                                  Positioned(
+                                    right: 8, 
+                                    top: 20,
+                                    bottom: 20,
+                                    child: _buildFastScrollStrip(),
+                                  ),
+                                  // Hover Bubble
+                                  if (_hoveredJuz != null)
+                                    Center(
+                                      child: _buildHoverBubble(),
+                                    ),
+                                ],
+                              ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -420,7 +446,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   Widget _buildJuzHeader(int juz) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      padding: const EdgeInsets.only(top: 32, bottom: 12, left: 16, right: 16),
       color: Colors.white.withValues(alpha: 0.02),
       child: Text(
         "JUZ $juz",
@@ -442,6 +468,9 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
         final percent = (localPos.dy - 100) / (box.size.height - 200);
         final juz = (percent * 30).clamp(1, 30).toInt();
         
+        if (juz != _hoveredJuz) {
+          HapticFeedback.selectionClick();
+        }
         setState(() => _hoveredJuz = juz);
         _scrollToJuz(juz);
       },
@@ -507,106 +536,166 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   }
 
   Widget _buildRefinedSurahCard(BuildContext context, QuranSurah surah) {
-    final pageNum = QuranPageService().getPageNumber(surah.id, 1);
-    final juzNum = quran.getJuzNumber(surah.id, 1);
-    final lastJuz = quran.getJuzNumber(surah.id, surah.totalVerses);
-    final juzRange = juzNum == lastJuz ? "Juz $juzNum" : "Juz $juzNum-$lastJuz";
-    final revelation = quran.getPlaceOfRevelation(surah.id);
-    final hook = surah.verses.isNotEmpty ? surah.verses.first.text : "";
-    
-    // Clean hook for display (remove end markers if present)
-    final displayHook = hook.split('۝').first.trim();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppColors.getTextPrimary(context);
+    final secondaryTextColor = AppColors.getTextSecondary(context);
 
-    return GestureDetector(
-      onTap: () => _handleSurahTap(context, surah.id, surah.transliteration),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
-        ),
-        child: Stack(
-          children: [
-            // Background Index Number
-            Positioned(
-              left: -8,
-              top: -5,
-              child: Text(
-                surah.id.toString().padLeft(2, '0'),
-                style: GoogleFonts.outfit(
-                  fontSize: 60,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white.withOpacity(0.03),
-                ),
+    // Dynamic Metadata
+    final pageNum = quran.getPageNumber(surah.id, 1);
+    final revelation = surah.type;
+    final juzStart = quran.getJuzNumber(surah.id, 1);
+    final juzEnd = quran.getJuzNumber(surah.id, surah.totalVerses);
+    final juzRange = juzStart == juzEnd ? "Juz $juzStart" : "Juz $juzStart - $juzEnd";
+    final displayHook = surah.verses.isNotEmpty ? surah.verses.first.text : "";
+
+    return GlassCard(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        int targetPage = pageNum;
+        if (_ayahNavigationTarget != null && _ayahNavigationTarget!.startsWith("${surah.id}:")) {
+          final ayahId = int.tryParse(_ayahNavigationTarget!.split(':').last);
+          if (ayahId != null) {
+            targetPage = quran.getPageNumber(surah.id, ayahId);
+          }
+        }
+        _handleSurahTap(context, surah.id, surah.transliteration, initialPage: targetPage);
+      },
+      padding: const EdgeInsets.all(20),
+      child: Stack(
+        children: [
+          // Background Index Number
+          Positioned(
+            left: -8,
+            top: -5,
+            child: Text(
+              surah.id.toString().padLeft(2, '0'),
+              style: GoogleFonts.outfit(
+                fontSize: 60,
+                fontWeight: FontWeight.w900,
+                color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.03),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Row: Arabic Name + revelation
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      kUthmaniSurahTitles[surah.id] ?? surah.name,
-                      style: const TextStyle(
-                        fontFamily: 'KFGQPCUthmanic',
-                        fontSize: 28,
-                        color: Colors.white,
-                        height: 1,
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Row: Arabic Name + revelation
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    surah.id == 1 ? "ٱلْفَاتِحَة" : surah.name, // Proper diacritics
+                    style: GoogleFonts.amiri(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary, // Emerald pop
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: textColor.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      revelation.toUpperCase(),
+                      style: GoogleFonts.outfit(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w300,
+                        color: secondaryTextColor.withValues(alpha: 0.5),
+                        letterSpacing: 1,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(6),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              // Surah Transliteration + Stats
+              Row(
+                children: [
+                  Text(
+                    surah.transliteration,
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 3,
+                    height: 3,
+                    decoration: BoxDecoration(color: secondaryTextColor.withValues(alpha: 0.3), shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 8),
+                    Text(
+                      "${surah.totalVerses} Ayahs",
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w300,
+                        color: secondaryTextColor.withValues(alpha: 0.5),
                       ),
-                      child: Text(
-                        revelation.toUpperCase(),
-                        style: GoogleFonts.outfit(
-                          color: Colors.white38,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Bottom Row: Juz alignment + Page
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.binary, size: 14, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        juzRange,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w300,
+                          color: textColor.withValues(alpha: 0.5),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        "Page $pageNum",
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primary.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(LucideIcons.chevron_right, size: 14, color: AppColors.primary),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Opening Hook Text
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 8),
-                // Meta Info
-                Text(
-                  "${surah.transliteration} • $juzRange • ${surah.totalVerses} Verses",
-                  style: GoogleFonts.outfit(
-                    color: Colors.white38,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                child: Text(
+                  displayHook,
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.amiri(
+                    fontSize: 16,
+                    color: textColor.withValues(alpha: 0.5),
                   ),
                 ),
-                const SizedBox(height: 12),
-                // Arabic Hook
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    displayHook,
-                    style: const TextStyle(
-                      fontFamily: 'KFGQPCUthmanic',
-                      fontSize: 20,
-                      color: AppColors.primary,
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.right,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textDirection: TextDirection.rtl,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -619,8 +708,9 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
       ? juzNumbers 
       : juzNumbers.where((n) => n.toString().contains(query)).toList();
 
+    final textColor = AppColors.getTextPrimary(context);
     if (filteredJuz.isEmpty) {
-      return const Center(child: Text("No Juz found.", style: TextStyle(color: Colors.white38)));
+      return Center(child: Text("No Juz found.", style: TextStyle(color: textColor.withValues(alpha: 0.5))));
     }
 
     return ListView.builder(
@@ -635,120 +725,120 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   }
 
   Widget _buildRefinedJuzCard(BuildContext context, int juz) {
-    final startData = _getJuzStartData(juz);
-    final startSurahId = startData[0];
-    final startAyahId = startData[1];
-    
-    // Get Surah details for the hook
+    // 1. Get Juz Details
+    final juzData = _getJuzStartData(juz);
+    final startSurahId = juzData['surah'] ?? 1;
+    final startAyahId = juzData['ayah'] ?? 1;
     final surah = _allSurahs.firstWhere((s) => s.id == startSurahId, orElse: () => _allSurahs.first);
-    final ayah = surah.verses.firstWhere((v) => v.id == startAyahId, orElse: () => surah.verses.first);
-    final hook = ayah.text.split('۝').first.trim();
-    
-    // Page metadata
     final pageNum = quran.getPageNumber(startSurahId, startAyahId);
 
-    return GestureDetector(
-      onTap: () => _handleSurahTap(context, startSurahId, surah.transliteration),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              left: -8,
-              top: -5,
-              child: Text(
-                juz.toString().padLeft(2, '0'),
-                style: GoogleFonts.outfit(
-                  fontSize: 60,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white.withValues(alpha: 0.03),
+    // 2. Identify Surahs in this Juz (Composition)
+    final composition = _getJuzComposition(juz);
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppColors.getTextPrimary(context);
+    final secondaryTextColor = AppColors.getTextSecondary(context);
+
+    return GlassCard(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        _handleSurahTap(context, startSurahId, surah.transliteration, initialPage: pageNum);
+      },
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Juz Number + Page
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "الجزء $juz".toUpperCase(),
+                style: GoogleFonts.amiri(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
                 ),
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Juz $juz",
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      "Page $pageNum",
-                      style: GoogleFonts.outfit(color: Colors.white38, fontSize: 12),
-                    ),
-                  ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  "Starts at ${surah.transliteration} $startSurahId:$startAyahId",
-                  style: GoogleFonts.outfit(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    hook,
-                    style: const TextStyle(
-                      fontFamily: 'KFGQPCUthmanic',
-                      fontSize: 20,
-                      color: Colors.white70,
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.right,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textDirection: TextDirection.rtl,
+                child: Text(
+                  "PAGE $pageNum",
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
                   ),
                 ),
-                const SizedBox(height: 16),
-                _buildJuzCompositionBar(juz),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Starts At Meta
+          Row(
+            children: [
+              const Icon(LucideIcons.book_open, size: 14, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                "Starts at ${surah.transliteration} ($startAyahId)",
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: textColor.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Composition Row (Surahs icons or labels)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: composition.map((sID) {
+                final sName = _allSurahs.firstWhere((s) => s.id == sID, orElse: () => _allSurahs.first).transliteration;
+                return Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: textColor.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: textColor.withValues(alpha: 0.1)),
+                  ),
+                  child: Text(
+                    sName,
+                    style: GoogleFonts.inter(fontSize: 11, color: secondaryTextColor),
+                  ),
+                );
+              }).toList(),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 20),
+          // Juz Composition Bar (High-Fidelity)
+          _buildJuzCompositionBar(composition),
+        ],
       ),
     );
   }
 
-  Widget _buildJuzCompositionBar(int juz) {
-    // Standard approximation of surah counts per Juz for the demo UI
-    // In a real app, this would be calculated from quran package metadata
-    List<double> segments = [1.0];
-    List<Color> colors = [AppColors.primary];
-    String label = "";
+  Widget _buildJuzCompositionBar(List<int> surahIds) {
+    final textColor = AppColors.getTextPrimary(context);
+    // Generate segments based on surahs present in the Juz
+    // For the demo, if multiple surahs, we show a multi-color bar
+    final segments = surahIds.map((_) => 1.0 / surahIds.length).toList();
+    final colors = surahIds.asMap().entries.map((entry) {
+        final opacity = 1.0 - (entry.key * 0.2).clamp(0.0, 0.7);
+        return AppColors.primary.withOpacity(opacity);
+    }).toList();
+    
+    String label = surahIds.length == 1 
+        ? "Single Surah Juz" 
+        : "${surahIds.length} Surahs Composition";
 
-    if (juz == 30) {
-      segments = [0.1, 0.15, 0.1, 0.1, 0.1, 0.45];
-      colors = [
-        AppColors.primary,
-        AppColors.primary.withOpacity(0.7),
-        AppColors.primary.withValues(alpha: 0.5),
-        AppColors.primary.withOpacity(0.3),
-        AppColors.primary.withOpacity(0.2),
-        Colors.white10
-      ];
-      label = "37 Surahs (An-Naba - An-Nas)";
-    } else if (juz == 1) {
-      segments = [0.05, 0.95];
-      colors = [AppColors.primary, AppColors.primary.withOpacity(0.4)];
-      label = "2 Surahs (Al-Fatihah, Al-Baqarah)";
-    } else {
-      segments = [0.7, 0.3];
-      colors = [AppColors.primary, Colors.white10];
-      label = "Mult-Surah Composition";
+    if (surahIds.length > 3) {
+        label = "${surahIds.length} Surahs";
     }
 
     return Column(
@@ -757,8 +847,8 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("JUZ COMPOSITION", style: GoogleFonts.outfit(color: Colors.white24, fontSize: 9, letterSpacing: 1, fontWeight: FontWeight.bold)),
-            Text(label, style: GoogleFonts.outfit(color: Colors.white24, fontSize: 9)),
+            Text("JUZ COMPOSITION", style: GoogleFonts.outfit(color: textColor.withValues(alpha: 0.3), fontSize: 9, letterSpacing: 1, fontWeight: FontWeight.bold)),
+            Text(label, style: GoogleFonts.outfit(color: textColor.withValues(alpha: 0.3), fontSize: 9)),
           ],
         ),
         const SizedBox(height: 6),
@@ -831,6 +921,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   }
 
   Widget _buildDefaultState() {
+    final textColor = AppColors.getTextPrimary(context);
     return Row(
       key: const ValueKey("default"),
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -838,7 +929,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
         Text(
           "Library",
           style: GoogleFonts.outfit(
-            color: Colors.white,
+            color: textColor,
             fontSize: 28,
             fontWeight: FontWeight.bold,
           ),
@@ -852,6 +943,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   }
 
   Widget _buildSearchState() {
+    final textColor = AppColors.getTextPrimary(context);
     return Row(
       key: const ValueKey("search"),
       children: [
@@ -859,17 +951,17 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: textColor.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: textColor.withValues(alpha: 0.1)),
             ),
             child: TextField(
               controller: _searchController,
               autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
+              style: TextStyle(color: textColor),
+              decoration: InputDecoration(
                 hintText: "Search Surah, Juz...",
-                hintStyle: TextStyle(color: Colors.white38),
+                hintStyle: TextStyle(color: textColor.withValues(alpha: 0.3)),
                 border: InputBorder.none,
               ),
             ),
@@ -891,11 +983,12 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   }
 
   Widget _buildSegmentedFilters() {
+    final textColor = AppColors.getTextPrimary(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: textColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -908,6 +1001,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   }
 
   Widget _buildFilterTab(String label, bool isActive, VoidCallback onTap) {
+    final textColor = AppColors.getTextPrimary(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -920,7 +1014,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.outfit(
-            color: isActive ? Colors.black : Colors.white38,
+            color: isActive ? Colors.black : textColor.withValues(alpha: 0.4),
             fontWeight: FontWeight.bold,
             fontSize: 14,
           ),
@@ -929,7 +1023,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
     );
   }
 
-  List<int> _getJuzStartData(int juz) {
+  Map<String, int> _getJuzStartData(int juz) {
     const Map<int, List<int>> starts = {
       1: [1, 1], 2: [2, 142], 3: [2, 253], 4: [3, 93], 5: [4, 24],
       6: [4, 148], 7: [5, 82], 8: [6, 111], 9: [7, 88], 10: [8, 41],
@@ -938,7 +1032,25 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
       21: [29, 46], 22: [33, 31], 23: [36, 28], 24: [39, 32], 25: [41, 47],
       26: [46, 1], 27: [51, 31], 28: [58, 1], 29: [67, 1], 30: [78, 1],
     };
-    return starts[juz] ?? [1, 1];
+    final data = starts[juz] ?? [1, 1];
+    return {
+      'surah': data[0],
+      'ayah': data[1],
+    };
+  }
+
+  List<int> _getJuzComposition(int juz) {
+    final List<int> composition = [];
+    for (int i = 1; i <= 114; i++) {
+        // Check if any part of the surah is in this juz
+        final startJuz = quran.getJuzNumber(i, 1);
+        final endJuz = quran.getJuzNumber(i, quran.getVerseCount(i));
+        
+        if (startJuz <= juz && endJuz >= juz) {
+            composition.add(i);
+        }
+    }
+    return composition;
   }
 }
 

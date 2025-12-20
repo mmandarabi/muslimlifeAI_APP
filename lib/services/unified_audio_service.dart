@@ -46,10 +46,17 @@ class UnifiedAudioService with WidgetsBindingObserver {
   static const String _prefVoiceKey = 'selected_voice_key';
   static const String _prefVoiceSetKey = 'voice_explicitly_set';
   static const String _prefQuranReciterKey = 'selected_quran_reciter_key';
+  static const String _prefReminderEnabled = 'adhan_reminder_enabled';
+  static const String _prefNotificationEnabled = 'adhan_notification_enabled';
+  static const String _prefSoundEnabled = 'adhan_sound_enabled';
   
   String _currentVoice = 'makkah'; // For Adhan
   String _currentQuranReciter = 'sudais'; // For Quran
   bool _isVoiceExplicitlySet = false;
+  
+  bool _reminderEnabled = true;
+  bool _notificationEnabled = false;
+  bool _soundEnabled = false;
 
   // Timestamp Data Cache
   final Map<int, List<AyahSegment>> _ayahTimestampCache = {};
@@ -65,6 +72,9 @@ class UnifiedAudioService with WidgetsBindingObserver {
   String get currentQuranReciter => _currentQuranReciter;
   bool get isVoiceExplicitlySet => _isVoiceExplicitlySet;
   int? get currentSurahId => _currentSurahId;
+  bool get reminderEnabled => _reminderEnabled;
+  bool get notificationEnabled => _notificationEnabled;
+  bool get soundEnabled => _soundEnabled;
   
   // Stream Getters (Proxied via Controllers)
   Stream<void> get onPlayerComplete => _playerStateController.stream
@@ -90,6 +100,9 @@ class UnifiedAudioService with WidgetsBindingObserver {
     _currentVoice = prefs.getString(_prefVoiceKey) ?? 'makkah';
     _currentQuranReciter = prefs.getString(_prefQuranReciterKey) ?? 'sudais';
     _isVoiceExplicitlySet = prefs.getBool(_prefVoiceSetKey) ?? false;
+    _reminderEnabled = prefs.getBool(_prefReminderEnabled) ?? true;
+    _notificationEnabled = prefs.getBool(_prefNotificationEnabled) ?? false;
+    _soundEnabled = prefs.getBool(_prefSoundEnabled) ?? false;
     
     await _initNotificationChannel();
     tz.initializeTimeZones();
@@ -190,6 +203,22 @@ class UnifiedAudioService with WidgetsBindingObserver {
     await _notificationsPlugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidAdhanChannel);
+  }
+
+  Future<void> updateAdhanSettings({bool? reminder, bool? notification, bool? sound}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (reminder != null) {
+      _reminderEnabled = reminder;
+      await prefs.setBool(_prefReminderEnabled, reminder);
+    }
+    if (notification != null) {
+      _notificationEnabled = notification;
+      await prefs.setBool(_prefNotificationEnabled, notification);
+    }
+    if (sound != null) {
+      _soundEnabled = sound;
+      await prefs.setBool(_prefSoundEnabled, sound);
+    }
   }
   
   Future<bool> requestNotificationPermissions() async {
@@ -448,7 +477,7 @@ class UnifiedAudioService with WidgetsBindingObserver {
       if (scheduledTime.isBefore(DateTime.now())) continue; 
 
       final reminderTime = scheduledTime.subtract(const Duration(minutes: 5));
-      if (reminderTime.isAfter(DateTime.now())) {
+      if (_reminderEnabled && reminderTime.isAfter(DateTime.now())) {
           await _notificationsPlugin.zonedSchedule(
             id++,
             'Upcoming: $prayerName',
@@ -456,7 +485,7 @@ class UnifiedAudioService with WidgetsBindingObserver {
             tz.TZDateTime.from(reminderTime, tz.local),
             const NotificationDetails(
               android: AndroidNotificationDetails(
-                'reminder_channel',
+                'reminder_channel_v1',
                 'Prayer Reminders',
                  channelDescription: '5-minute warnings before prayer',
                  importance: Importance.high, 
@@ -468,29 +497,32 @@ class UnifiedAudioService with WidgetsBindingObserver {
           );
       }
 
-      await _notificationsPlugin.zonedSchedule(
-        id++,
-        '$prayerName Prayer Time',
-        'Al-Adhan: High quality recitation',
-        tz.TZDateTime.from(scheduledTime, tz.local),
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'adhan_channel_v1',
-            'Adhan Notifications',
-             channelDescription: 'Plays Adhan sound at prayer time',
-             importance: Importance.max, 
-             priority: Priority.max,
-             sound: RawResourceAndroidNotificationSound('adhan_makkah'),
-             fullScreenIntent: true,
+      if (_notificationEnabled || _soundEnabled) {
+        await _notificationsPlugin.zonedSchedule(
+          id++,
+          '$prayerName Prayer Time',
+          _soundEnabled ? 'Al-Adhan: High quality recitation' : 'Time for $prayerName prayer.',
+          tz.TZDateTime.from(scheduledTime, tz.local),
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'adhan_channel_v1',
+              'Adhan Notifications',
+               channelDescription: 'Plays Adhan sound or notification at prayer time',
+               importance: _soundEnabled ? Importance.max : Importance.high, 
+               priority: _soundEnabled ? Priority.max : Priority.high,
+               sound: _soundEnabled ? RawResourceAndroidNotificationSound('adhan_makkah') : null,
+               playSound: _soundEnabled,
+               fullScreenIntent: _soundEnabled,
+            ),
+            iOS: DarwinNotificationDetails(
+              presentAlert: true,
+              presentSound: _soundEnabled,
+              sound: _soundEnabled ? 'adhan_makkah.aiff' : null,
+            ),
           ),
-          iOS: DarwinNotificationDetails(
-            presentAlert: true,
-            presentSound: true,
-            sound: 'adhan_makkah.aiff',
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      );
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        );
+      }
     }
   }
 

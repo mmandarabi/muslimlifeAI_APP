@@ -4,16 +4,18 @@ import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 class GridPainter extends CustomPainter {
   final double opacity;
   final double spacing;
+  final Color? color;
 
   GridPainter({
     this.opacity = 0.05,
     this.spacing = 40.0,
+    this.color,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.primary.withOpacity(opacity)
+      ..color = (color ?? AppColors.primary).withOpacity(opacity)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
 

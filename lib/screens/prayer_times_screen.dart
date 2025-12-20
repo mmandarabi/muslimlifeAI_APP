@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart'; // For PlayerState
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:muslim_life_ai_demo/models/prayer_times.dart';
 import 'package:muslim_life_ai_demo/services/prayer_service.dart';
@@ -252,18 +254,27 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
 
     final pt = _prayerTimes!;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = AppColors.getBackgroundColor(context);
+    final textColor = AppColors.getTextPrimary(context);
+    final secondaryTextColor = AppColors.getTextSecondary(context);
+    final accentColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4);
+
     return Stack(
       children: [
-        // Background Gradient
-        Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF0B1410), // Deep Green/Black
-                Color(0xFF0B0C0E), // Black
-              ],
+        // 0. LAYER: SANCTUARY BACKGROUND
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(-0.2, -0.6),
+                radius: 1.5,
+                colors: [
+                  accentColor,
+                  backgroundColor,
+                ],
+                stops: const [0.0, 0.7],
+              ),
             ),
           ),
         ),
@@ -274,7 +285,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
             backgroundColor: Colors.transparent,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(LucideIcons.menu, color: Colors.white),
+              icon: Icon(LucideIcons.menu, color: textColor),
               onPressed: () {},
             ),
             title: Row(
@@ -283,22 +294,23 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 const Icon(LucideIcons.map_pin, size: 16, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Text(
-                  "Belmont, VA", // Dynamic?
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white,
+                  "Belmont, VA",
+                  style: GoogleFonts.outfit(
+                    color: textColor,
                     fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
               ],
             ),
             centerTitle: true,
             actions: [
-              IconButton( // Notification Toggle Button
-                icon: const Icon(LucideIcons.bell, color: Colors.white),
-                onPressed: _checkPermissions, // Request/Show Rationale
+              IconButton(
+                icon: Icon(LucideIcons.bell, color: textColor),
+                onPressed: _checkPermissions,
               ),
                IconButton(
-                icon: const Icon(LucideIcons.settings_2, color: Colors.white),
+                icon: Icon(LucideIcons.settings_2, color: textColor),
                 onPressed: _showVoiceSelector,
               ),
             ],
@@ -306,7 +318,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
               preferredSize: const Size.fromHeight(20),
               child: Text(
                 _prayerTimes?.dateHijri ?? "27 Jumada al-Awwal 1447 AH",
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                style: GoogleFonts.outfit(color: secondaryTextColor, fontSize: 12),
               ),
             ),
           ),
@@ -320,39 +332,42 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 // Main Countdown Card
                 GlassCard(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
                     child: Column(
                       children: [
                          Text(
-                          _calculatedNextPrayerName ?? pt.nextPrayerName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
+                          _calculatedNextPrayerName?.toUpperCase() ?? pt.nextPrayerName.toUpperCase(),
+                          style: GoogleFonts.outfit(
+                            color: textColor,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 1.1,
+                            letterSpacing: 2,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                          Text(
                           _formatDuration(_timeUntilNextPrayer),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 42,
-                            fontWeight: FontWeight.bold,
-                            fontFeatures: [FontFeature.tabularFigures()],
+                          style: GoogleFonts.outfit(
+                            color: textColor,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                         const SizedBox(height: 20),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                             borderRadius: BorderRadius.circular(20),
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: AppColors.primary.withValues(alpha: 0.05),
                           ),
                           child: Text(
-                            "Next Prayer at ${_calculatedNextPrayerTime ?? pt.nextPrayerTime}",
-                            style: const TextStyle(color: AppColors.primary),
+                            "Next at ${_calculatedNextPrayerTime ?? pt.nextPrayerTime}",
+                            style: GoogleFonts.outfit(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -360,29 +375,29 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                   ),
                 ),
                 
-                const SizedBox(height: 20),
+                const SizedBox(height: 28),
                 
                 // Daily Schedule List
                 _buildPrayerRow("Fajr", pt.fajr, "الفجر"),
-                const SizedBox(height: 8),
-                _buildPrayerRow("Dhuhr", pt.dhuhr, "الظهر"),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
+                _buildPrayerRow("Dhuhr", pt.dhuhr, "الظُّهر"),
+                const SizedBox(height: 12),
                 _buildPrayerRow("Asr", pt.asr, "العصر"),
-                const SizedBox(height: 8),
-                _buildPrayerRow("Maghrib", pt.maghrib, "المغرب"), // Highlight if current?
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
+                _buildPrayerRow("Maghrib", pt.maghrib, "المغرب"),
+                const SizedBox(height: 12),
                 _buildPrayerRow("Isha", pt.isha, "العشاء"),
                 
-                const SizedBox(height: 20),
+                const SizedBox(height: 32),
                 
                  Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(LucideIcons.volume_2, size: 16, color: Colors.white54),
-                    SizedBox(width: 8),
+                    Icon(LucideIcons.info, size: 14, color: secondaryTextColor.withValues(alpha: 0.5)),
+                    const SizedBox(width: 8),
                     Text(
-                      "Adhan plays at prayer time when notifications are enabled.",
-                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                      "Adhan playing in foreground enabled.",
+                      style: GoogleFonts.inter(color: secondaryTextColor.withValues(alpha: 0.5), fontSize: 11),
                     ),
                   ],
                 ),
@@ -396,15 +411,24 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   }
 
   Widget _buildPrayerRow(String english, String time, String arabic) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppColors.getTextPrimary(context);
+    final secondaryTextColor = AppColors.getTextSecondary(context);
+
     bool isNext = english == (_calculatedNextPrayerName ?? _prayerTimes?.nextPrayerName);
     bool isPlayingThis = _playingPrayer == english;
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: isNext ? const Color(0xFF0B1410).withOpacity(0.8) : const Color(0xFF1E1E1E),
-        border: isNext ? Border.all(color: AppColors.primary.withOpacity(0.5)) : Border.all(color: Colors.white10),
-        borderRadius: BorderRadius.circular(16),
+        color: isNext 
+            ? AppColors.primary.withValues(alpha: 0.1) 
+            : (isDark ? Colors.white : Colors.black).withValues(alpha: 0.03),
+        border: Border.all(
+          color: isNext ? AppColors.primary.withValues(alpha: 0.3) : (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
+          width: 0.5,
+        ),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
@@ -412,9 +436,9 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
             width: 80,
             child: Text(
               english,
-              style: TextStyle(
-                color: isNext ? AppColors.primary : Colors.white,
-                fontWeight: FontWeight.bold,
+              style: GoogleFonts.outfit(
+                color: isNext ? AppColors.primary : textColor,
+                fontWeight: isNext ? FontWeight.bold : FontWeight.w500,
                 fontSize: 16,
               ),
             ),
@@ -422,18 +446,19 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
           const Spacer(),
           Text(
             arabic,
-            style: const TextStyle(
-              color: Colors.white,
+            style: GoogleFonts.amiri( // Sanctuary standard for Arabic
+              color: isNext ? AppColors.primary : textColor.withValues(alpha: 0.8),
               fontSize: 20,
-              fontFamily: 'KFGQPCUthmanic', // Assuming font is available
+              fontWeight: FontWeight.bold,
             ),
           ),
           const Spacer(),
           Text(
             time,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
+            style: GoogleFonts.outfit(
+              color: isNext ? textColor : secondaryTextColor,
+              fontSize: 14,
+              fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
             ),
           ),
           const SizedBox(width: 16),
@@ -441,22 +466,19 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
           // Speaker Icon Toggle
           GestureDetector(
             onTap: () async {
+              HapticFeedback.lightImpact();
               final now = DateTime.now();
               if (_lastTapTime != null && now.difference(_lastTapTime!).inMilliseconds < 1000) {
-                debugPrint("UI: Tap debounced.");
-                return; // Debounce
+                return;
               }
               _lastTapTime = now;
 
               if (isPlayingThis) {
-                debugPrint("UI: User manually TAP STOP");
-                _userStoppedAdhan = true; // User explicitly stopped it
+                _userStoppedAdhan = true;
                 _audioService.stop();
                 setState(() => _playingPrayer = null);
               } else {
-                debugPrint("UI: User manually TAP PLAY");
-                _userStoppedAdhan = false; // User explicitly played it, reset lock
-                
+                _userStoppedAdhan = false;
                 _isSwitchingAudio = true;
                 setState(() => _playingPrayer = english);
                 await _audioService.playAdhan(); 
@@ -467,28 +489,15 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 duration: const Duration(milliseconds: 300),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                    color: isPlayingThis ? AppColors.primary.withOpacity(0.2) : Colors.transparent,
+                    color: isPlayingThis ? AppColors.primary.withValues(alpha: 0.2) : Colors.transparent,
                     shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  isPlayingThis ? Icons.stop_circle_outlined : LucideIcons.volume_2, // Play/Stop Toggle
-                  color: isPlayingThis ? AppColors.primary : Colors.grey, // Active Green, Inactive Gray
+                  isPlayingThis ? LucideIcons.circle_stop : LucideIcons.volume_2,
+                  color: isPlayingThis ? AppColors.primary : secondaryTextColor.withValues(alpha: 0.5),
                   size: 20,
                 ),
             ).animate(target: isPlayingThis ? 1 : 0).scale(begin: const Offset(1,1), end: const Offset(1.1, 1.1)),
-          ),
-          
-          const SizedBox(width: 8),
-          
-          // Radio Button (just visual or logic?) existing UI had it.
-          // Keeping it as visual check for "Next" or just empty circle
-           Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white24),
-            ),
           ),
         ],
       ),
@@ -496,39 +505,83 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   }
 
   Future<void> _checkPermissions() async {
-    final bool? shouldRequest = await showDialog<bool>(
+    bool localReminder = _audioService.reminderEnabled;
+    bool localNotification = _audioService.notificationEnabled;
+    bool localSound = _audioService.soundEnabled;
+
+    final bool? confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text("Enable Adhan Notifications?", style: TextStyle(color: Colors.white)),
-        content: const Text(
-          "To hear the Adhan at prayer times, please allow notifications. We verify this respects your device's \"Do Not Disturb\" settings.",
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Later", style: TextStyle(color: Colors.white54)),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.getBackgroundColor(context),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: Text("Adhan Settings", style: GoogleFonts.outfit(color: AppColors.getTextPrimary(context), fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Customize how you want to be notified for prayer times. We respect your device's \"Do Not Disturb\" settings.",
+                style: GoogleFonts.inter(color: AppColors.getTextSecondary(context), fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              _buildDialogCheckbox(
+                "5-Minute Reminder", 
+                "Get a gentle warning before prayer.", 
+                localReminder, 
+                (v) => setDialogState(() => localReminder = v!)
+              ),
+              _buildDialogCheckbox(
+                "Notification Only", 
+                "Show a text alert at prayer time.", 
+                localNotification, 
+                (v) => setDialogState(() => localNotification = v!)
+              ),
+              _buildDialogCheckbox(
+                "Full Adhan Sound", 
+                "Play the beautiful Adhan recitation.", 
+                localSound, 
+                (v) => setDialogState(() => localSound = v!)
+              ),
+            ],
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white, // Explicit text color
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel", style: TextStyle(color: AppColors.getTextSecondary(context).withValues(alpha: 0.5))),
             ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Enable", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Save & Enable", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
       ),
     );
 
-    if (shouldRequest == true) {
+    if (confirmed == true) {
       final granted = await _audioService.requestNotificationPermissions();
+      if (granted) {
+        await _audioService.updateAdhanSettings(
+          reminder: localReminder,
+          notification: localNotification,
+          sound: localSound,
+        );
+        // Re-schedule with new settings
+        if (_prayerTimes != null) {
+          await _scheduleFutureNotifications(_prayerTimes!);
+        }
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(granted ? "Notifications Enabled" : "Permission Denied"),
+            content: Text(granted ? "Settings Saved & Enabled" : "Permission Denied"),
             backgroundColor: granted ? Colors.green : Colors.red,
           ),
         );
@@ -536,21 +589,34 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     }
   }
 
+  Widget _buildDialogCheckbox(String title, String subtitle, bool value, Function(bool?) onChanged) {
+    return CheckboxListTile(
+      title: Text(title, style: GoogleFonts.outfit(color: AppColors.getTextPrimary(context), fontSize: 15, fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: GoogleFonts.inter(color: AppColors.getTextSecondary(context), fontSize: 11)),
+      value: value,
+      onChanged: onChanged,
+      activeColor: AppColors.primary,
+      checkColor: Colors.black,
+      contentPadding: EdgeInsets.zero,
+      controlAffinity: ListTileControlAffinity.trailing,
+    );
+  }
+
   void _showVoiceSelector() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0B0C0E),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: AppColors.getBackgroundColor(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Select Adhan Voice", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            Text("Select Adhan Voice", style: TextStyle(color: AppColors.getTextPrimary(context), fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             _buildVoiceOption("Makkah", "makkah"),
             _buildVoiceOption("Madinah", "madinah"),
@@ -563,15 +629,17 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
   }
 
   Widget _buildVoiceOption(String label, String id) {
+    final textColor = AppColors.getTextPrimary(context);
+    final secondaryTextColor = AppColors.getTextSecondary(context);
     return ListTile(
-      title: Text(label, style: const TextStyle(color: Colors.white)),
-      leading: const Icon(LucideIcons.mic, color: Colors.white70),
+      title: Text(label, style: TextStyle(color: textColor)),
+      leading: Icon(LucideIcons.mic, color: secondaryTextColor),
       onTap: () async {
         await _audioService.setVoice(id);
         if (mounted) Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Voice set to $label")));
       },
-      trailing: const Icon(LucideIcons.chevron_right, color: Colors.white38, size: 16),
+      trailing: Icon(LucideIcons.chevron_right, color: secondaryTextColor.withValues(alpha: 0.5), size: 16),
     );
   }
 }

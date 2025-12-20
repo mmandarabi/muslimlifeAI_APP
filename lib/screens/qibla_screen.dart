@@ -142,23 +142,27 @@ class _QiblaScreenState extends State<QiblaScreen> {
   Widget build(BuildContext context) {
     if (kIsWeb) return const _WebFallbackView();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = AppColors.getBackgroundColor(context);
+    final textColor = AppColors.getTextPrimary(context);
+
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0B0C0E),
+      return Scaffold(
+        backgroundColor: backgroundColor,
         body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
     if (_error != null) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0B0C0E),
+        backgroundColor: backgroundColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(LucideIcons.triangle_alert, color: Colors.red, size: 48),
               const SizedBox(height: 16),
-              Text(_error!, style: const TextStyle(color: Colors.white, fontSize: 16)),
+              Text(_error!, style: TextStyle(color: textColor, fontSize: 16)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _initCompass,
@@ -186,9 +190,12 @@ class _QiblaScreenState extends State<QiblaScreen> {
         final double? accuracy = compassEvent.accuracy;
         
         if (heading == null) {
-          return const Scaffold(
-            backgroundColor: Color(0xFF0B0C0E),
-            body: Center(child: Text("Device does not support compass", style: TextStyle(color: Colors.white))),
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final backgroundColor = AppColors.getBackgroundColor(context);
+          final textColor = AppColors.getTextPrimary(context);
+          return Scaffold(
+            backgroundColor: backgroundColor,
+            body: Center(child: Text("Device does not support compass", style: TextStyle(color: textColor))),
           );
         }
         
@@ -285,35 +292,40 @@ class _CompassUIState extends State<_CompassUI> {
     final needleRotation = (widget.qiblaDirection - widget.heading) * (math.pi / 180);
     final mediaQuery = MediaQuery.of(context);
 
-    // Lock text scaling to 1.0 for the compass UI to prevent overlap and layout breaks
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = AppColors.getBackgroundColor(context);
+    final textColor = AppColors.getTextPrimary(context);
+    final secondaryTextColor = AppColors.getTextSecondary(context);
+    final accentColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4);
+
     return MediaQuery(
-      data: mediaQuery.copyWith(textScaleFactor: 1.0),
+      data: mediaQuery.copyWith(textScaler: TextScaler.noScaling),
       child: Scaffold(
-      backgroundColor: const Color(0xFF0B0C0E),
+      backgroundColor: backgroundColor,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrow_left, color: Colors.white),
+          icon: Icon(LucideIcons.arrow_left, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
           children: [
-            const Text(
+            Text(
               "Qibla Compass",
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w600),
             ),
              Text(
               widget.locationName,
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
+              style: TextStyle(color: secondaryTextColor, fontSize: 12),
             ),
           ],
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(_showMap ? LucideIcons.compass : LucideIcons.map, color: Colors.white),
+            icon: Icon(_showMap ? LucideIcons.compass : LucideIcons.map, color: textColor),
             onPressed: () {
               setState(() {
                 _showMap = !_showMap;
@@ -332,8 +344,8 @@ class _CompassUIState extends State<_CompassUI> {
                   center: Alignment.topCenter,
                   radius: 1.5,
                   colors: [
-                    AppColors.primary.withOpacity(0.15),
-                    const Color(0xFF0B0C0E),
+                    accentColor,
+                    backgroundColor,
                   ],
                 ),
               ),
@@ -341,7 +353,7 @@ class _CompassUIState extends State<_CompassUI> {
           ),
 
           if (_showMap)
-            const Center(child: Text("Map View Placeholder", style: TextStyle(color: Colors.white)))
+            Center(child: Text("Map View Placeholder", style: TextStyle(color: textColor)))
           else
             SafeArea(
               child: Column(
@@ -351,14 +363,14 @@ class _CompassUIState extends State<_CompassUI> {
                    Container(
                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                      decoration: BoxDecoration(
-                       color: Colors.white.withOpacity(0.05),
+                       color: textColor.withValues(alpha: 0.05),
                        borderRadius: BorderRadius.circular(20),
-                       border: Border.all(color: Colors.white10),
+                       border: Border.all(color: textColor.withValues(alpha: 0.1)),
                      ),
                      child: Text(
                        "${widget.heading.toStringAsFixed(0)}° ${getCardinalDirection(widget.heading)}",
-                       style: const TextStyle(
-                         color: Colors.white,
+                       style: TextStyle(
+                         color: textColor,
                          fontSize: 24,
                          fontWeight: FontWeight.bold,
                          fontFamily: 'Courier', // Monospace for stability
@@ -402,7 +414,7 @@ class _CompassUIState extends State<_CompassUI> {
                          // Center Pivot
                          Container(
                            width: 12, height: 12,
-                           decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                           decoration: BoxDecoration(color: textColor, shape: BoxShape.circle),
                          ),
                        ],
                      ),
@@ -431,15 +443,15 @@ class _CompassUIState extends State<_CompassUI> {
             // Interference Warning
             if (widget.accuracy > 45) // Arbitrary threshold for 'bad' interference
               Container(
-                color: Colors.black87,
-                child: const Center(
+                color: (isDark ? Colors.black : Colors.white).withOpacity(0.9),
+                child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(LucideIcons.magnet, color: Colors.orange, size: 64),
-                      SizedBox(height: 16),
-                      Text("Magnetic Interference", style: TextStyle(color: Colors.white, fontSize: 20)),
-                      Text("Wave phone in figure-8", style: TextStyle(color: Colors.white54)),
+                      const Icon(LucideIcons.magnet, color: Colors.orange, size: 64),
+                      const SizedBox(height: 16),
+                      Text("Magnetic Interference", style: TextStyle(color: textColor, fontSize: 20)),
+                      Text("Wave phone in figure-8", style: TextStyle(color: secondaryTextColor)),
                     ],
                   ),
                 ),
@@ -451,18 +463,20 @@ class _CompassUIState extends State<_CompassUI> {
 }
 
   Widget _buildFallbackDial() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppColors.getTextPrimary(context);
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white24, width: 2),
-        color: Colors.black54,
+        border: Border.all(color: textColor.withValues(alpha: 0.1), width: 2),
+        color: textColor.withValues(alpha: 0.05),
       ),
       child: Stack(
          children: [
            const Positioned(top: 10, left: 0, right: 0, child: Center(child: Text("N", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)))),
-           const Positioned(bottom: 10, left: 0, right: 0, child: Center(child: Text("S", style: TextStyle(color: Colors.white)))),
-           const Positioned(top: 0, bottom: 0, right: 10, child: Center(child: Text("E", style: TextStyle(color: Colors.white)))),
-           const Positioned(top: 0, bottom: 0, left: 10, child: Center(child: Text("W", style: TextStyle(color: Colors.white)))),
+           Positioned(bottom: 10, left: 0, right: 0, child: Center(child: Text("S", style: TextStyle(color: textColor)))),
+           Positioned(top: 0, bottom: 0, right: 10, child: Center(child: Text("E", style: TextStyle(color: textColor)))),
+           Positioned(top: 0, bottom: 0, left: 10, child: Center(child: Text("W", style: TextStyle(color: textColor)))),
          ],
       ),
     );
@@ -480,13 +494,14 @@ class _CompassUIState extends State<_CompassUI> {
     return "";
   }
   
-  Widget _buildInfoBadge(String label, String value, {Color color = Colors.white}) {
+  Widget _buildInfoBadge(String label, String value, {Color? color}) {
+    final secondaryTextColor = AppColors.getTextSecondary(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label, 
-          style: const TextStyle(color: Colors.white54, fontSize: 10, letterSpacing: 1.5),
+          style: TextStyle(color: secondaryTextColor.withValues(alpha: 0.5), fontSize: 10, letterSpacing: 1.5),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -495,7 +510,7 @@ class _CompassUIState extends State<_CompassUI> {
           fit: BoxFit.scaleDown,
           child: Text(
             value, 
-            style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(color: color ?? AppColors.getTextPrimary(context), fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
       ],
@@ -508,23 +523,27 @@ class _WebFallbackView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final backgroundColor = AppColors.getBackgroundColor(context);
+    final textColor = AppColors.getTextPrimary(context);
+    final secondaryTextColor = AppColors.getTextSecondary(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0C0E),
-      appBar: AppBar(backgroundColor: Colors.transparent, iconTheme: const IconThemeData(color: Colors.white)),
+      backgroundColor: backgroundColor,
+      appBar: AppBar(backgroundColor: Colors.transparent, iconTheme: IconThemeData(color: textColor)),
       body: Center(
         child: GlassContainer(
            height: 200, width: 300,
            borderRadius: BorderRadius.circular(20),
-           gradient: LinearGradient(colors: [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.05)]),
-           borderGradient: LinearGradient(colors: [Colors.white.withOpacity(0.2), Colors.transparent]),
-           child: const Column(
+           gradient: LinearGradient(colors: [textColor.withOpacity(0.05), textColor.withOpacity(0.02)]),
+           borderGradient: LinearGradient(colors: [textColor.withOpacity(0.1), Colors.transparent]),
+           child: Column(
              mainAxisAlignment: MainAxisAlignment.center,
              children: [
-               Icon(LucideIcons.compass, size: 48, color: Colors.white54),
-               SizedBox(height: 16),
-               Text("Compass not supported on Web", style: TextStyle(color: Colors.white)),
-               SizedBox(height: 8),
-               Text("Please use the Mobile App", style: TextStyle(color: Colors.white38, fontSize: 12)),
+               Icon(LucideIcons.compass, size: 48, color: secondaryTextColor),
+               const SizedBox(height: 16),
+               Text("Compass not supported on Web", style: TextStyle(color: textColor)),
+               const SizedBox(height: 8),
+               Text("Please use the Mobile App", style: TextStyle(color: secondaryTextColor, fontSize: 12)),
              ],
            ),
         ),

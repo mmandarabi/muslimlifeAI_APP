@@ -21,11 +21,13 @@ import 'package:muslim_life_ai_demo/services/quran_page_service.dart';
 class QuranReadMode extends StatefulWidget {
   final int surahId;
   final String surahName;
+  final int? initialPage; // Added to support jump-to-page (Juz navigation)
 
   const QuranReadMode({
     super.key, 
     this.surahId = 1, 
     this.surahName = "Al-Fātiḥah",
+    this.initialPage,
   });
 
   @override
@@ -84,7 +86,7 @@ class _QuranReadModeState extends State<QuranReadMode> {
     _isPlaying = _audioService.isPlaying;
 
     // Phase 3: Init Global PageController
-    final startPage = QuranPageService().getPageNumber(_currentSurahId, 1);
+    final startPage = widget.initialPage ?? QuranPageService().getPageNumber(_currentSurahId, 1);
     _pageController = PageController(initialPage: startPage - 1);
     _currentVisualPageLocal = startPage - 1;
 
@@ -110,6 +112,16 @@ class _QuranReadModeState extends State<QuranReadMode> {
         _updateActiveAyah();
       }
     });
+  }
+
+  bool _initialized = false;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _isLightMode = Theme.of(context).brightness == Brightness.light;
+      _initialized = true;
+    }
   }
 
   @override
@@ -534,12 +546,11 @@ class _QuranReadModeState extends State<QuranReadMode> {
 
   @override
   Widget build(BuildContext context) {
-    // Phase 1.5: Light Mushaf Mode Theme
-    final backgroundColor = _isLightMode ? const Color(0xFFFDFBF7) : const Color(0xFF0B0C0E);
-    final textColor = _isLightMode ? const Color(0xFF1A1A1A) : Colors.white;
-    final secondaryTextColor = _isLightMode ? Colors.black54 : Colors.white60;
-    final glassColor = _isLightMode ? Colors.black.withOpacity(0.03) : Colors.white.withValues(alpha: 0.05);
-    final borderColor = _isLightMode ? Colors.black.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.1);
+    final isDark = !_isLightMode;
+    final backgroundColor = _isLightMode ? AppColors.backgroundLight : AppColors.background;
+    final textColor = _isLightMode ? AppColors.textPrimaryLight : AppColors.textPrimaryDark;
+    final secondaryTextColor = _isLightMode ? AppColors.textSecondaryLight : AppColors.textSecondaryDark;
+    final accentColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -563,6 +574,22 @@ class _QuranReadModeState extends State<QuranReadMode> {
 
           return Stack(
             children: [
+              // 0. LAYER: SANCTUARY BACKGROUND (Theme-Aware)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.2, -0.6),
+                      radius: 1.5,
+                      colors: [
+                        accentColor,
+                        backgroundColor,
+                      ],
+                      stops: const [0.0, 0.7],
+                    ),
+                  ),
+                ),
+              ),
               // 1. LAYER: MAIN QURAN TEXT (PAGEVIEW)
               Positioned.fill(
                 child: GestureDetector(
@@ -590,7 +617,6 @@ class _QuranReadModeState extends State<QuranReadMode> {
               ),
 
               // 2. LAYER: PERSISTENT HEADER (Surah & Juz)
-              // Only visible when controls are SHOWN for immersive feel
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
                 top: _showControls ? MediaQuery.of(context).padding.top : -100,
@@ -622,14 +648,14 @@ class _QuranReadModeState extends State<QuranReadMode> {
                             style: GoogleFonts.amiri(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: textColor,
+                              color: AppColors.primary,
                             ),
                           ),
                           Text(
                             arabicJuz,
                             style: GoogleFonts.amiri(
                               fontSize: 14,
-                              color: textColor.withOpacity(0.7),
+                              color: textColor.withOpacity(0.5),
                             ),
                           ),
                         ],
@@ -637,6 +663,74 @@ class _QuranReadModeState extends State<QuranReadMode> {
                       IconButton(
                         icon: Icon(LucideIcons.settings_2, color: textColor),
                         onPressed: () => _showSettingsSheet(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // 2.5 LAYER: IMMERSIVE OVERLAYS (Visible only when controls are HIDDEN)
+              IgnorePointer(
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 400),
+                  opacity: _showControls ? 0.0 : 0.6,
+                  child: Stack(
+                    children: [
+                      // Top Center: Current Time
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 8,
+                        left: 0,
+                        right: 0,
+                        child: StreamBuilder(
+                          stream: Stream.periodic(const Duration(seconds: 1)),
+                          builder: (context, snapshot) {
+                            final now = DateTime.now();
+                            final timeStr = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+                            return Center(
+                              child: Text(
+                                timeStr,
+                                style: GoogleFonts.outfit(color: textColor, fontSize: 13, fontWeight: FontWeight.w500),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      // Top Left: Juz Context
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 8,
+                        left: 24,
+                        child: Text(
+                          "الجزء $juzNumber".toUpperCase(),
+                          style: GoogleFonts.outfit(color: textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      // Top Right: Surah Context
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 8,
+                        right: 24,
+                        child: Text(
+                          surah.name.toUpperCase(),
+                          style: GoogleFonts.outfit(color: textColor, fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      // Bottom Center: Page Number
+                      Positioned(
+                        bottom: MediaQuery.of(context).padding.bottom + 20,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              "PAGE ${_currentVisualPageLocal + 1}",
+                              style: GoogleFonts.outfit(color: textColor, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -671,88 +765,115 @@ class _QuranReadModeState extends State<QuranReadMode> {
   }
 
   Widget _buildFloatingAudioCard(QuranSurah surah, Color textColor, Color secondaryTextColor) {
+    final isDark = !_isLightMode;
+    final tintColor = isDark ? Colors.white : Colors.black;
+    final shadowColor = isDark ? Colors.black.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.08);
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       height: 90,
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: (_isLightMode ? Colors.white : Colors.black).withOpacity(0.75),
+              color: tintColor.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: textColor.withValues(alpha: 0.1), width: 0.5),
+              border: Border.all(color: borderColor, width: 0.5),
             ),
-            child: Row(
+            child: Stack(
               children: [
-                // Speed Button
-                _buildSmallControl(
-                  text: "1x", 
-                  onTap: () {
-                    _triggerHaptic();
-                    // Speed logic not requested, but UI is here
-                  },
-                  color: secondaryTextColor,
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: isDark ? 0.05 : 0.03,
+                    child: Image.asset(
+                      'assets/images/islamic_pattern_bg.png',
+                      repeat: ImageRepeat.repeat,
+                      color: isDark ? null : Colors.black,
+                      colorBlendMode: isDark ? null : BlendMode.srcIn,
+                    ),
+                  ),
                 ),
-                
-                const Spacer(),
-
-                // Main Controls
                 Row(
                   children: [
-                    IconButton(
-                      icon: Icon(LucideIcons.skip_back, color: textColor, size: 24),
-                      onPressed: () {
+                    // Speed Button
+                    _buildSmallControl(
+                      text: "1x", 
+                      onTap: () {
                         _triggerHaptic();
-                        if (surah.id > 1) _changeSurah(surah.id - 1);
                       },
+                      color: secondaryTextColor,
                     ),
-                    const SizedBox(width: 8),
-                    _buildMainPlayButton(),
-                    const SizedBox(width: 8),
+                    
+                    const Spacer(),
+
+                    // Main Controls
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(LucideIcons.skip_back, color: textColor, size: 24),
+                          onPressed: () {
+                            _triggerHaptic();
+                            if (surah.id > 1) _changeSurah(surah.id - 1);
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _buildMainPlayButton(),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(LucideIcons.skip_forward, color: textColor, size: 24),
+                          onPressed: () {
+                            _triggerHaptic();
+                            if (surah.id < 114) _changeSurah(surah.id + 1);
+                          },
+                        ),
+                      ],
+                    ),
+
+                    const Spacer(),
+
+                    // Reciter Button
+                    GestureDetector(
+                      onTap: () {
+                        _triggerHaptic();
+                        _showReciterSheet();
+                      },
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(LucideIcons.mic, color: AppColors.primary, size: 20),
+                          Text(
+                            _audioService.currentQuranReciter.toUpperCase(),
+                            style: GoogleFonts.outfit(
+                              color: AppColors.primary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Repeat/Loop Icon
                     IconButton(
-                      icon: Icon(LucideIcons.skip_forward, color: textColor, size: 24),
+                      icon: Icon(LucideIcons.repeat, color: secondaryTextColor, size: 20),
                       onPressed: () {
                         _triggerHaptic();
-                        if (surah.id < 114) _changeSurah(surah.id + 1);
                       },
                     ),
                   ],
-                ),
-
-                const Spacer(),
-
-                // Reciter Button
-                GestureDetector(
-                  onTap: () {
-                    _triggerHaptic();
-                    _showReciterSheet();
-                  },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(LucideIcons.mic, color: AppColors.primary, size: 20),
-                      Text(
-                        _audioService.currentQuranReciter.toUpperCase(),
-                        style: GoogleFonts.outfit(
-                          color: AppColors.primary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Repeat/Loop Icon
-                IconButton(
-                  icon: Icon(LucideIcons.repeat, color: secondaryTextColor, size: 20),
-                  onPressed: () {
-                    _triggerHaptic();
-                    // Loop logic placeholder
-                  },
                 ),
               ],
             ),
@@ -1253,16 +1374,16 @@ class _QuranReadModeState extends State<QuranReadMode> {
               : const NeverScrollableScrollPhysics(),
           padding: EdgeInsets.only(
             top: MediaQuery.of(context).padding.top + 60, 
-            bottom: 140, 
+            bottom: _showControls ? 140 : 80, // Less bottom padding in immersive mode
             left: 16,
             right: 16,
           ),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - (MediaQuery.of(context).padding.top + 200)),
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - (MediaQuery.of(context).padding.top + (_showControls ? 200 : 140))),
             child: Column(
               mainAxisAlignment: (absPageNum == 1 || absPageNum == 2)
                   ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
+                  : MainAxisAlignment.spaceEvenly, // Use spaceEvenly to fill the page naturally
               children: pageContent.isNotEmpty 
                 ? pageContent 
                 : [
@@ -1309,7 +1430,8 @@ class _QuranReadModeState extends State<QuranReadMode> {
 
   Widget _buildSurahHeader(String surahName, Color textColor) {
     // High-Fidelity Mushaf Cartouche
-    final frameColor = const Color(0xFFD4AF37); // Mushaf Gold
+    final accentColor = AppColors.primary; // Digital Sanctuary Green
+    final frameColor = accentColor.withValues(alpha: 0.6);
     final bgColor = _isLightMode ? const Color(0xFFFDFBF7) : const Color(0xFF0B0C0E);
 
     return Container(
@@ -1325,9 +1447,9 @@ class _QuranReadModeState extends State<QuranReadMode> {
               width: double.infinity,
               height: 60,
               decoration: BoxDecoration(
-                color: frameColor.withValues(alpha: 0.05),
+                color: accentColor.withValues(alpha: 0.05),
                 border: Border.symmetric(
-                  horizontal: BorderSide(color: frameColor.withOpacity(0.4), width: 1.5),
+                  horizontal: BorderSide(color: frameColor.withValues(alpha: 0.4), width: 1.5),
                 ),
               ),
               child: Opacity(
@@ -1337,7 +1459,7 @@ class _QuranReadModeState extends State<QuranReadMode> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemBuilder: (context, index) => Text(
                     " ✿ ",
-                    style: TextStyle(color: frameColor, fontSize: 24),
+                    style: TextStyle(color: accentColor, fontSize: 24),
                   ),
                 ),
               ),
@@ -1349,12 +1471,12 @@ class _QuranReadModeState extends State<QuranReadMode> {
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
              child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: frameColor.withValues(alpha: 0.3), width: 0.8),
+                border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 0.8),
               ),
               child: Container(
                 margin: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  border: Border.all(color: frameColor.withOpacity(0.15), width: 1.5),
+                  border: Border.all(color: accentColor.withValues(alpha: 0.15), width: 1.5),
                 ),
               ),
             ),
@@ -1363,20 +1485,20 @@ class _QuranReadModeState extends State<QuranReadMode> {
           // 3. Side Ornaments
           Positioned(
             left: 8,
-            child: Text("﴿", style: TextStyle(fontFamily: 'KFGQPCUthmanic', fontSize: 40, color: frameColor.withValues(alpha: 0.6))),
+            child: Text("﴿", style: TextStyle(fontFamily: 'KFGQPCUthmanic', fontSize: 40, color: accentColor.withValues(alpha: 0.6))),
           ),
           Positioned(
             right: 8,
-            child: Text("﴾", style: TextStyle(fontFamily: 'KFGQPCUthmanic', fontSize: 40, color: frameColor.withValues(alpha: 0.6))),
+            child: Text("﴾", style: TextStyle(fontFamily: 'KFGQPCUthmanic', fontSize: 40, color: accentColor.withValues(alpha: 0.6))),
           ),
 
           // 4. Surah Title Text
           Text(
             "سُورَةُ $surahName",
-            style: TextStyle(
-              fontFamily: 'KFGQPCUthmanic',
-              fontSize: 24,
-              color: textColor,
+            style: GoogleFonts.amiri( // Standardizing to Amiri for decorative titles
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: accentColor,
               height: 1.2,
             ),
           ),
