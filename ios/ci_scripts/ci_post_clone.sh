@@ -2,7 +2,7 @@
 set -e
 set -x
 
-# 1. FIX LOCALES (Critical for CocoaPods/Ruby)
+# 1. FIX LOCALES
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
@@ -17,19 +17,14 @@ if [ -d "$FLUTTER_HOME" ]; then
 fi
 
 echo "⬇️ Cloning Flutter SDK..."
-git clone https://github.com/flutter/flutter.git --depth 1 -b stable --verbose "$FLUTTER_HOME"
+git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
 export PATH="$PATH:$FLUTTER_HOME/bin"
 
-# 4. Pre-cache and Install Dependencies
-echo "📦 Installing Dependencies..."
+# 4. Generate Build Artifacts ONLY
+echo "📦 Generating Flutter Artifacts..."
 flutter config --no-analytics
-flutter precache --ios
 flutter pub get
+# This triggers the generation of ios/Flutter/Generated.xcconfig which CocoaPods needs
 flutter build ios --config-only
 
-# 5. Install CocoaPods
-echo "☕️ Installing Pods..."
-cd ios
-pod install --repo-update
-
-echo "✅ ci_post_clone.sh completed successfully."
+echo "✅ ci_post_clone.sh completed. handing off to Xcode Cloud..."
