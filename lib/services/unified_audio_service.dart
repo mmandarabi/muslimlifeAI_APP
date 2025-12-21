@@ -5,7 +5,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' as fln;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -38,7 +38,7 @@ class UnifiedAudioService with WidgetsBindingObserver {
   }
 
   AudioPlayer? _audioPlayer;
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final fln.FlutterLocalNotificationsPlugin _notificationsPlugin = fln.FlutterLocalNotificationsPlugin();
   
   // Proxy Stream Controllers to persist across player instance changes
   final StreamController<PlayerState> _playerStateController = StreamController<PlayerState>.broadcast();
@@ -211,27 +211,27 @@ class UnifiedAudioService with WidgetsBindingObserver {
   }
 
   Future<void> _initNotificationChannel() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
+    const androidSettings = fln.AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = fln.DarwinInitializationSettings(
       requestAlertPermission: true, 
       requestSoundPermission: true,
       requestBadgePermission: true,
     );
-    const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
+    const settings = fln.InitializationSettings(android: androidSettings, iOS: iosSettings);
     
     await _notificationsPlugin.initialize(settings);
 
-    const androidAdhanChannel = AndroidNotificationChannel(
+    const androidAdhanChannel = fln.AndroidNotificationChannel(
         'adhan_channel_v1',
         'Adhan Notifications',
         description: 'Critical notifications for prayer times',
-        importance: Importance.max,
+        importance: fln.Importance.max,
         playSound: true,
-        sound: RawResourceAndroidNotificationSound('adhan_makkah'),
+        sound: fln.RawResourceAndroidNotificationSound('adhan_makkah'),
     );
 
     await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<fln.AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidAdhanChannel);
   }
 
@@ -254,13 +254,13 @@ class UnifiedAudioService with WidgetsBindingObserver {
   Future<bool> requestNotificationPermissions() async {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       final bool? result = await _notificationsPlugin
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<fln.IOSFlutterLocalNotificationsPlugin>()
           ?.requestPermissions(alert: true, badge: true, sound: true);
       return result ?? false;
     } else if (defaultTargetPlatform == TargetPlatform.android) {
-       final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+       final fln.AndroidFlutterLocalNotificationsPlugin? androidImplementation =
             _notificationsPlugin.resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>();
+                fln.AndroidFlutterLocalNotificationsPlugin>();
         return await androidImplementation?.requestNotificationsPermission() ?? false;
     }
     return false;
@@ -593,18 +593,18 @@ class UnifiedAudioService with WidgetsBindingObserver {
             'Upcoming: $prayerName',
             'Prayer starts in 5 minutes.',
             tz.TZDateTime.from(reminderTime, tz.local),
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
+            const fln.NotificationDetails(
+              android: fln.AndroidNotificationDetails(
                 'reminder_channel_v1',
                 'Prayer Reminders',
                  channelDescription: '5-minute warnings before prayer',
-                 importance: Importance.high, 
-                 priority: Priority.high,
+                 importance: fln.Importance.high, 
+                 priority: fln.Priority.high,
               ),
-              iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+              iOS: fln.DarwinNotificationDetails(presentAlert: true, presentSound: true),
             ),
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-            uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+            androidScheduleMode: fln.AndroidScheduleMode.exactAllowWhileIdle,
+            // uiLocalNotificationDateInterpretation: fln.UILocalNotificationDateInterpretation.absoluteTime,
           );
       }
 
@@ -619,25 +619,25 @@ class UnifiedAudioService with WidgetsBindingObserver {
           '$prayerName Prayer Time',
           _soundEnabled ? 'Al-Adhan: High quality recitation' : 'Time for $prayerName prayer.',
           tz.TZDateTime.from(scheduledTime, tz.local),
-          NotificationDetails(
-            android: AndroidNotificationDetails(
+          fln.NotificationDetails(
+            android: fln.AndroidNotificationDetails(
               'adhan_channel_v1',
               'Adhan Notifications',
                channelDescription: 'Plays Adhan sound or notification at prayer time',
-               importance: _soundEnabled ? Importance.max : Importance.high, 
-               priority: _soundEnabled ? Priority.max : Priority.high,
-               sound: _soundEnabled ? RawResourceAndroidNotificationSound('adhan_makkah') : null,
+               importance: _soundEnabled ? fln.Importance.max : fln.Importance.high, 
+               priority: _soundEnabled ? fln.Priority.max : fln.Priority.high,
+               sound: _soundEnabled ? fln.RawResourceAndroidNotificationSound('adhan_makkah') : null,
                playSound: _soundEnabled,
                fullScreenIntent: _soundEnabled,
             ),
-            iOS: DarwinNotificationDetails(
+            iOS: fln.DarwinNotificationDetails(
               presentAlert: true,
               presentSound: _soundEnabled,
               sound: _soundEnabled ? soundFile : null,
             ),
           ),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+          androidScheduleMode: fln.AndroidScheduleMode.exactAllowWhileIdle,
+          // uiLocalNotificationDateInterpretation: fln.UILocalNotificationDateInterpretation.absoluteTime,
         );
       }
     }
