@@ -1,36 +1,31 @@
-#!/bin/bash
-set -e  # Fail on any error
-set -x  # Print all commands for debugging
+#!/bin/sh
+set -e
+set -x
 
-# 1. FIX LOCALES (Required for CocoaPods)
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-
-# 2. NAVIGATE TO REPO ROOT (The Missing Fix)
-# Xcode Cloud starts in ios/ci_scripts. We need to go up two levels to the root.
+# 1. Navigate to Repo Root
 cd "$(dirname "$0")/../.."
 echo "📍 Current working directory: $(pwd)"
 
-# 3. DEFINE PATHS
-FLUTTER_HOME="$HOME/flutter"
-FLUTTER_BIN="$FLUTTER_HOME/bin/flutter"
+# 2. Install Flutter
+export FLUTTER_HOME="$HOME/flutter"
+if [ -d "$FLUTTER_HOME" ]; then
+    rm -rf "$FLUTTER_HOME"
+fi
 
-echo "▶️ Starting Setup..."
-
-# 4. CLEAN & INSTALL FLUTTER
-rm -rf "$FLUTTER_HOME"
 echo "⬇️ Cloning Flutter SDK..."
 git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
+export PATH="$PATH:$FLUTTER_HOME/bin"
 
-# 5. RUN FLUTTER COMMANDS (From Root)
-echo "✅ Flutter binary: $FLUTTER_BIN"
-"$FLUTTER_BIN" config --no-analytics
-"$FLUTTER_BIN" pub get
-"$FLUTTER_BIN" build ios --config-only
+# 3. Pre-cache and Install Dependencies
+echo "📦 Installing Dependencies..."
+flutter config --no-analytics
+flutter precache --ios
+flutter pub get
+flutter build ios --config-only
 
-# 6. INSTALL PODS (Now 'cd ios' will work)
-echo "☕️ Installing CocoaPods..."
+# 4. Install CocoaPods
+echo "☕️ Installing Pods..."
 cd ios
-pod install
+pod install --repo-update
 
-echo "✅ Script Finished Successfully."
+echo "✅ ci_post_clone.sh completed successfully."
