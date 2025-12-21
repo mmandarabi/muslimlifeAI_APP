@@ -24,7 +24,10 @@ export PATH="$PATH:$FLUTTER_HOME/bin"
 echo "📦 Generating Flutter Artifacts..."
 flutter config --no-analytics
 flutter pub get
-# This triggers the generation of ios/Flutter/Generated.xcconfig which CocoaPods needs
-flutter build ios --config-only
+
+# NOTE: We DO NOT run 'flutter build ios' here because it triggers 'pod install'
+# which takes too long and causes timeouts. 
+# 'flutter pub get' creates ios/Flutter/Generated.xcconfig which is enough 
+# for the native Xcode Cloud 'pod install' step to succeed later.
 
 echo "✅ ci_post_clone.sh completed. handing off to Xcode Cloud..."
