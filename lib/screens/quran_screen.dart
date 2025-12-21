@@ -60,7 +60,7 @@ class _QuranScreenState extends State<QuranScreen> {
   void dispose() {
     _playerStateSubscription?.cancel();
     _audioService.downloadingNotifier.removeListener(_onDownloadStatusChanged);
-    _audioService.stop(); // Stop when leaving this screen
+    // Persistent Audio Fix: Removed stop() on local disposal
     super.dispose();
   }
 

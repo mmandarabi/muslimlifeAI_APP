@@ -80,7 +80,7 @@ class AnalyticsScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(LucideIcons.flame,
@@ -113,7 +113,7 @@ class AnalyticsScreen extends StatelessWidget {
             // Insight Card
             GlassCard(
               border: Border.all(
-                color: AppColors.primary.withOpacity(0.3),
+                color: AppColors.primary.withValues(alpha: 0.3),
                 width: 1,
               ),
               child: Padding(
@@ -150,12 +150,12 @@ class AnalyticsScreen extends StatelessWidget {
           width: 8,
           height: 100 * heightFactor,
           decoration: BoxDecoration(
-            color: isToday ? AppColors.primary : AppColors.primary.withOpacity(0.5),
+            color: isToday ? AppColors.primary : AppColors.primary.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(4),
             boxShadow: isToday
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.5),
+                      color: AppColors.primary.withValues(alpha: 0.5),
                       blurRadius: 10,
                       spreadRadius: 2,
                     )

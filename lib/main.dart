@@ -8,12 +8,14 @@ import 'package:muslim_life_ai_demo/screens/intro_screen.dart';
 import 'package:muslim_life_ai_demo/screens/landing_page.dart';
 import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:muslim_life_ai_demo/services/theme_service.dart';
+import 'package:muslim_life_ai_demo/services/unified_audio_service.dart';
 
 import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeService().init();
+  await UnifiedAudioService().init();
 
   // Initialize Firebase
   await Firebase.initializeApp(

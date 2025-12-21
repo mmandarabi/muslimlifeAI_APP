@@ -47,7 +47,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadPrayerTimes();
-    _audioService.init();
     
     // Listen for external stop or completion
     _playerStateSubscription = _audioService.onPlayerStateChanged.listen((state) {
@@ -82,7 +81,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     _timer?.cancel();
     _playerStateSubscription?.cancel();
     _playerCompleteSubscription?.cancel();
-    _audioService.stop(); 
+    // UnifiedAudioService handles session; we don't stop on local disposal
     super.dispose();
   }
 
@@ -129,6 +128,22 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       addTime("Asr", data.asr);
       addTime("Maghrib", data.maghrib);
       addTime("Isha", data.isha);
+
+      // 🛑 SCHEDULING FIX: Also add tomorrow's times to ensure coverage if opened late at night.
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      void addTomorrowTime(String name, String timeStr) {
+        final dt = _parseTime(timeStr);
+        if (dt != null) {
+          final tomorrowDt = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, dt.hour, dt.minute);
+          times["$name (Tomorrow)"] = tomorrowDt;
+        }
+      }
+
+      addTomorrowTime("Fajr", data.fajr);
+      addTomorrowTime("Dhuhr", data.dhuhr);
+      addTomorrowTime("Asr", data.asr);
+      addTomorrowTime("Maghrib", data.maghrib);
+      addTomorrowTime("Isha", data.isha);
       
       await _audioService.scheduleAdhanNotifications(times);
   }
@@ -284,10 +299,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            leading: IconButton(
-              icon: Icon(LucideIcons.menu, color: textColor),
-              onPressed: () {},
-            ),
+            // leading: Removed as per user request (was menu icon)
+            automaticallyImplyLeading: false, // Ensure no default back button if pushed (though it's a tab)
             title: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -509,6 +522,10 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
     bool localNotification = _audioService.notificationEnabled;
     bool localSound = _audioService.soundEnabled;
 
+    // Mutual Exclusion Logic
+    // If Sound is ON, Notification Only is OFF (and vice versa)
+    // Both can be OFF.
+    
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -520,27 +537,33 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "Customize how you want to be notified for prayer times. We respect your device's \"Do Not Disturb\" settings.",
+                "Choose your notification preference. Options are mutually exclusive.",
                 style: GoogleFonts.inter(color: AppColors.getTextSecondary(context), fontSize: 13),
               ),
               const SizedBox(height: 20),
-              _buildDialogCheckbox(
-                "5-Minute Reminder", 
-                "Get a gentle warning before prayer.", 
-                localReminder, 
-                (v) => setDialogState(() => localReminder = v!)
-              ),
+              // Option 1: Notification Only
               _buildDialogCheckbox(
                 "Notification Only", 
-                "Show a text alert at prayer time.", 
+                "Show a silent text alert at prayer time.", 
                 localNotification, 
-                (v) => setDialogState(() => localNotification = v!)
+                (v) => setDialogState(() {
+                   localNotification = v!;
+                   if (localNotification) {
+                     localSound = false; // Disable sound if notification only
+                   }
+                })
               ),
+              // Option 2: Full Adhan Sound
               _buildDialogCheckbox(
                 "Full Adhan Sound", 
                 "Play the beautiful Adhan recitation.", 
                 localSound, 
-                (v) => setDialogState(() => localSound = v!)
+                (v) => setDialogState(() {
+                   localSound = v!;
+                   if (localSound) {
+                     localNotification = false; // Disable notification-only mode if sound is on
+                   }
+                })
               ),
             ],
           ),
@@ -568,7 +591,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       final granted = await _audioService.requestNotificationPermissions();
       if (granted) {
         await _audioService.updateAdhanSettings(
-          reminder: localReminder,
+          reminder: false, // Always OFF as per user request
           notification: localNotification,
           sound: localSound,
         );
@@ -581,7 +604,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(granted ? "Settings Saved & Enabled" : "Permission Denied"),
+            content: Text(granted ? "Settings Saved" : "Permission Denied"),
             backgroundColor: granted ? Colors.green : Colors.red,
           ),
         );

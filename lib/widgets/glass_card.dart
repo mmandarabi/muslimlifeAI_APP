@@ -58,6 +58,7 @@ class GlassCard extends StatelessWidget {
                 border: border ?? Border.all(color: borderColor, width: 0.5),
               ),
               child: Stack(
+                alignment: Alignment.center,
                 children: [
                   // Subtle Islamic Pattern Texture
                   Positioned.fill(

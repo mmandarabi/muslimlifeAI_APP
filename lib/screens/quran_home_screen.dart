@@ -12,6 +12,7 @@ import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
 import 'package:muslim_life_ai_demo/services/unified_audio_service.dart';
 import 'package:muslim_life_ai_demo/services/quran_page_service.dart';
+import 'package:muslim_life_ai_demo/services/theme_service.dart';
 import 'package:quran/quran.dart' as quran;
 
 class QuranHomeScreen extends StatefulWidget {
@@ -202,6 +203,9 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   }
 
   void _handleSurahTap(BuildContext context, int surahId, String surahName, {int? initialPage}) {
+    // Selection-Interrupt: Reset global state before navigation
+    _audioService.prepareSurah(surahId, surahName);
+    
     // Phase 1.5: Direct Read Mode - No more interruption for elders
     _navigateToMode(context, true, surahId, surahName, initialPage: initialPage);
   }
@@ -946,9 +950,26 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        IconButton(
-          icon: const Icon(LucideIcons.search, color: AppColors.primary),
-          onPressed: () => setState(() => _isSearchMode = true),
+        Row(
+          children: [
+            // Mode Icon (Sanctuary/Theme Toggle) - Top Right
+            IconButton(
+              icon: Icon(
+                Theme.of(context).brightness == Brightness.dark 
+                    ? LucideIcons.moon 
+                    : LucideIcons.sun,
+                color: AppColors.primary
+              ),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                ThemeService().toggleTheme();
+              },
+            ),
+            IconButton(
+              icon: const Icon(LucideIcons.search, color: AppColors.primary),
+              onPressed: () => setState(() => _isSearchMode = true),
+            ),
+          ],
         ),
       ],
     );

@@ -12,6 +12,7 @@ import 'package:muslim_life_ai_demo/theme/app_theme.dart';
 import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
 import 'package:muslim_life_ai_demo/widgets/grid_painter.dart';
 import 'package:muslim_life_ai_demo/services/theme_service.dart';
+import 'package:muslim_life_ai_demo/widgets/mini_player.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -21,7 +22,15 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _selectedIndex = 0;
+  // Static variable to persist state across MaterialApp rebuilds (Theme Toggles)
+  static int _persistentIndex = 0; 
+  late int _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = _persistentIndex;
+  }
 
   final List<Widget> _screens = const [
     HomeTab(),
@@ -34,8 +43,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _onItemTapped(int index) {
     HapticFeedback.lightImpact();
+    HapticFeedback.lightImpact();
     setState(() {
       _selectedIndex = index;
+      _persistentIndex = index;
     });
   }
 
@@ -78,36 +89,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           
-          // Main Content
-          _screens[_selectedIndex],
-
-          // Global Theme Toggle
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            right: 20,
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                ThemeService().toggleTheme();
-              },
-              child: GlassCard(
-                borderRadius: 16,
-                padding: const EdgeInsets.all(8),
-                child: Icon(
-                  isDark ? LucideIcons.sun : LucideIcons.moon,
-                  color: isDark ? Colors.white : Colors.black,
-                  size: 20,
-                ),
-              ),
-            ),
+          // Main Content (Using IndexedStack to preserve state and reduce transition stress)
+          IndexedStack(
+            index: _selectedIndex,
+            children: _screens,
           ),
         ],
       ),
-      bottomNavigationBar: Container(
-        height: 90,
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
-        child: GlassCard(
-          borderRadius: 24,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MiniPlayer(),
+          const SizedBox(height: 12),
+          Container(
+            height: 90,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+            child: GlassCard(
+              borderRadius: 24,
           sigma: 20,
           padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
           child: Row(
@@ -137,7 +135,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   Widget _buildNavItem(IconData icon, int index, Color unselectedColor) {
