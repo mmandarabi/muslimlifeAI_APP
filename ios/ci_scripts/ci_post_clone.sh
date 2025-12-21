@@ -6,9 +6,8 @@ set -x
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-# 2. Navigate to Repo Root
+# 2. Navigate to project root
 cd "$(dirname "$0")/../.."
-echo "📍 Current working directory: $(pwd)"
 
 # 3. Install Flutter
 export FLUTTER_HOME="$HOME/flutter"
@@ -16,18 +15,17 @@ if [ -d "$FLUTTER_HOME" ]; then
     rm -rf "$FLUTTER_HOME"
 fi
 
-echo "⬇️ Cloning Flutter SDK..."
 git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
 export PATH="$PATH:$FLUTTER_HOME/bin"
 
-# 4. Generate Build Artifacts ONLY
-echo "📦 Generating Flutter Artifacts..."
+# 4. Generate Build Artifacts
 flutter config --no-analytics
+flutter precache --ios     # <--- IMPORTANT: Downloads the iOS engine
 flutter pub get
 
-# NOTE: We DO NOT run 'flutter build ios' here because it triggers 'pod install'
-# which takes too long and causes timeouts. 
-# 'flutter pub get' creates ios/Flutter/Generated.xcconfig which is enough 
-# for the native Xcode Cloud 'pod install' step to succeed later.
+# 5. THE MISSING FIX: Update iOS configuration for Release
+# This creates the 'Generated.xcconfig' with the correct Release settings.
+# Without this, Xcode Cloud fails with Error 65.
+flutter build ios --config-only --release
 
-echo "✅ ci_post_clone.sh completed. handing off to Xcode Cloud..."
+echo "✅ ci_post_clone.sh completed."
