@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:muslim_life_ai_demo/screens/intro_screen.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/grid_painter.dart';
+import 'package:muslim_mind/screens/intro_screen.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/grid_painter.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -138,7 +138,7 @@ class _LandingPageState extends State<LandingPage> {
                     children: [
                       // Title
                       Text(
-                        "MuslimLife AI",
+                        "MuslimMind",
                         style: Theme.of(context).textTheme.displayLarge?.copyWith(
                               fontSize: 64,
                               color: AppColors.primary,
@@ -227,7 +227,7 @@ class _LandingPageState extends State<LandingPage> {
                           ),
                           const SizedBox(height: 48),
                           Text(
-                            "MuslimLife AI connects you with authenticated Islamic knowledge through a privacy-focused, AI-driven interface. Whether you are looking for accurate prayer times, Qibla direction, or a deeper understanding of the Quran, our platform adapts to your spiritual needs without compromising your data.",
+                            "MuslimMind connects you with authenticated Islamic knowledge through a privacy-focused, AI-driven interface. Whether you are looking for accurate prayer times, Qibla direction, or a deeper understanding of the Quran, our platform adapts to your spiritual needs without compromising your data.",
                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                   fontSize: 18,
                                   height: 1.6,
@@ -246,7 +246,7 @@ class _LandingPageState extends State<LandingPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    "© MuslimLife AI — 2025",
+                    "© MuslimMind — 2025",
                     style: TextStyle(
                       color: Colors.white24,
                       fontSize: 14,

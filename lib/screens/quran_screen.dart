@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:muslim_life_ai_demo/models/quran_display_names.dart';
-import 'package:muslim_life_ai_demo/models/quran_surah.dart';
-import 'package:muslim_life_ai_demo/models/quran_ayah.dart';
-import 'package:muslim_life_ai_demo/services/quran_local_service.dart';
-import 'package:muslim_life_ai_demo/services/unified_audio_service.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
-import 'package:muslim_life_ai_demo/screens/quran_read_mode.dart';
+import 'package:muslim_mind/models/quran_display_names.dart';
+import 'package:muslim_mind/models/quran_surah.dart';
+import 'package:muslim_mind/models/quran_ayah.dart';
+import 'package:muslim_mind/services/quran_local_service.dart';
+import 'package:muslim_mind/services/unified_audio_service.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/glass_card.dart';
+import 'package:muslim_mind/screens/quran_read_mode.dart';
 
 class QuranScreen extends StatefulWidget {
   final int surahId;

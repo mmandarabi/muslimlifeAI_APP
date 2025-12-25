@@ -3,24 +3,28 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:muslim_life_ai_demo/screens/dashboard_screen.dart';
-import 'package:muslim_life_ai_demo/screens/intro_screen.dart';
-import 'package:muslim_life_ai_demo/screens/landing_page.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/services/theme_service.dart';
-import 'package:muslim_life_ai_demo/services/unified_audio_service.dart';
+import 'package:muslim_mind/screens/dashboard_screen.dart';
+import 'package:muslim_mind/screens/intro_screen.dart';
+import 'package:muslim_mind/screens/landing_page.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/services/prayer_log_service.dart';
+import 'package:muslim_mind/services/theme_service.dart';
+import 'package:muslim_mind/services/unified_audio_service.dart';
 
 import 'firebase_options.dart';
+import 'package:muslim_mind/widgets/expandable_audio_player.dart';
+import 'package:muslim_mind/config/navigation_key.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ThemeService().init();
-  await UnifiedAudioService().init();
-
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  
+  // Parallelize critical initializations to reduce startup time
+  await Future.wait([
+    ThemeService().init(),
+    UnifiedAudioService().init(),
+    PrayerLogService().init(),
+    _initializeFirebase(),
+  ]);
 
   // Use Emulators in Debug Mode
   if (kDebugMode) {
@@ -45,11 +49,26 @@ Future<void> main() async {
     await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
   }
 
-  runApp(const MuslimLifeAIApp());
+  runApp(const MuslimMindApp());
 }
 
-class MuslimLifeAIApp extends StatelessWidget {
-  const MuslimLifeAIApp({super.key});
+Future<void> _initializeFirebase() async {
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } catch (e) {
+    if (!e.toString().contains('duplicate-app')) {
+      rethrow;
+    }
+    debugPrint('Firebase already initialized');
+  }
+}
+
+class MuslimMindApp extends StatelessWidget {
+  const MuslimMindApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -57,11 +76,21 @@ class MuslimLifeAIApp extends StatelessWidget {
       listenable: ThemeService(),
       builder: (context, _) {
         return MaterialApp(
-          title: 'MuslimLife AI',
+          title: 'MuslimMind',
+          navigatorKey: rootNavigatorKey,
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeService().themeMode,
+          builder: (context, child) {
+            return Stack(
+              children: [
+                if (child != null) child,
+                // Global Immersive Player - Persistent across all routes
+                const ExpandableAudioPlayer(key: ValueKey('global_audio_player')),
+              ],
+            );
+          },
           home: StreamBuilder<User?>(
             stream: FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {

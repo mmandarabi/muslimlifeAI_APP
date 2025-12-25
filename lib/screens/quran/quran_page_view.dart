@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,6 +16,7 @@ class QuranPageView extends StatelessWidget {
   final int? playingSurahId;
   final TextAlign align;
   final Function(int surahId, int ayahId) onAyahDoubleTap;
+  final Function(int surahId, int ayahId)? onAyahLongPress;
 
   const QuranPageView({
     super.key,
@@ -25,13 +27,14 @@ class QuranPageView extends StatelessWidget {
     required this.surahId,
     required this.playingSurahId,
     required this.onAyahDoubleTap,
+    this.onAyahLongPress,
     this.align = TextAlign.justify,
   });
 
   @override
   Widget build(BuildContext context) {
     if (verses.isEmpty) {
-      return Text("No verses found", style: TextStyle(color: textColor));
+      return Text("No ayahs found", style: TextStyle(color: textColor));
     }
 
     List<InlineSpan> textSpans = [];
@@ -40,33 +43,55 @@ class QuranPageView extends StatelessWidget {
       final isActive = (surahId == playingSurahId && ayah.id == activeAyahId);
       final ayahColor = isActive ? AppColors.primary : textColor;
       
+      // Custom Gesture Handling Variables
+      Timer? longPressTimer;
+      int lastTapTime = 0;
+
+      final recognizer = TapGestureRecognizer()
+        ..onTapDown = (details) {
+          longPressTimer?.cancel();
+          longPressTimer = Timer(const Duration(milliseconds: 500), () {
+            debugPrint("QuranPageView: Manually detected LongPress on Ayah ${ayah.id}");
+            if (onAyahLongPress != null) {
+              onAyahLongPress!(surahId, ayah.id);
+            }
+          });
+        }
+        ..onTapUp = (details) {
+          longPressTimer?.cancel();
+        }
+        ..onTapCancel = () {
+          longPressTimer?.cancel();
+        }
+        ..onTap = () {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          if (now - lastTapTime < 300) {
+             debugPrint("QuranPageView: Manually detected DoubleTap on Ayah ${ayah.id}");
+             
+             // 🛑 DEBUG: SnackBar removed.
+             // ScaffoldMessenger.of(context).clearSnackBars();
+
+
+             onAyahDoubleTap(surahId, ayah.id);
+          }
+          lastTapTime = now;
+        };
+
       textSpans.add(
         TextSpan(
-          recognizer: LongPressGestureRecognizer()
-            ..onLongPress = () {
-              debugPrint("QuranPageView: LongPress detected on Ayah ${ayah.id}");
-              onAyahDoubleTap(surahId, ayah.id);
-            },
+          text: " ${ayah.text} ",
+          recognizer: recognizer,
+          style: TextStyle(
+            fontFamily: 'KFGQPCUthmanic',
+            fontSize: fontSize, 
+            height: 2.1,
+            color: ayahColor,
+            backgroundColor: isActive ? AppColors.primary.withValues(alpha: 0.15) : null,
+          ),
           children: [
-            TextSpan(
-              text: " ${ayah.text} ",
-              recognizer: DoubleTapGestureRecognizer()
-                ..onDoubleTap = () {
-                  debugPrint("QuranPageView: DoubleTap detected on Ayah ${ayah.id}");
-                  onAyahDoubleTap(surahId, ayah.id);
-                },
-              style: TextStyle(
-                fontFamily: 'KFGQPCUthmanic',
-                fontSize: fontSize, 
-                height: 2.1,
-                color: ayahColor,
-                backgroundColor: isActive ? AppColors.primary.withValues(alpha: 0.15) : null,
-              ),
-            ),
-            TextSpan(
+             TextSpan(
               text: " ${_toArabicNumbers(ayah.id)} ",
-              recognizer: DoubleTapGestureRecognizer()
-                ..onDoubleTap = () => onAyahDoubleTap(surahId, ayah.id),
+              recognizer: recognizer, // Apply same recognizer to number
               style: TextStyle(
                 fontFamily: 'KFGQPCUthmanic',
                 fontSize: fontSize * 1.1,
@@ -75,7 +100,7 @@ class QuranPageView extends StatelessWidget {
                 letterSpacing: -0.5,
               ),
             ),
-          ],
+          ]
         ),
       );
     }

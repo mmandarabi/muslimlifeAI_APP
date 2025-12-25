@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:muslim_life_ai_demo/services/ai_chat_service.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
+import 'package:muslim_mind/services/ai_chat_service.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/glass_card.dart';
 
 class AIInsightCarousel extends StatefulWidget {
   const AIInsightCarousel({super.key});

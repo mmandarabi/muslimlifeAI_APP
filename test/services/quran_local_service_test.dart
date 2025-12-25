@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:muslim_life_ai_demo/services/quran_local_service.dart';
+import 'package:muslim_mind/services/quran_local_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

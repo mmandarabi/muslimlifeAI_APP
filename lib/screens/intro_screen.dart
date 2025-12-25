@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:muslim_life_ai_demo/screens/dashboard_screen.dart';
-import 'package:muslim_life_ai_demo/screens/login_screen.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/grid_painter.dart';
+import 'package:muslim_mind/screens/dashboard_screen.dart';
+import 'package:muslim_mind/screens/login_screen.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/grid_painter.dart';
 
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
@@ -41,7 +41,7 @@ class _IntroScreenState extends State<IntroScreen> {
     },
     {
       "title": "Your intelligent spiritual companion is ready.",
-      "subtitle": "MuslimLife AI",
+      "subtitle": "MuslimMind",
     },
   ];
 

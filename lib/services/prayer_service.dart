@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prayer_times.dart';
 import '../config/api_config.dart';
 
@@ -17,10 +18,29 @@ class PrayerService {
   // Simple in-memory cache
   PrayerTimes? _cachedData;
   DateTime? _lastFetchTime;
+  
+  static const String _storageKey = 'cached_prayer_times';
 
   // Cloud Function URL
   String get _endpointUrl => '${ApiConfig.baseUrl}/getPrayerTimes';
+  
+  /// 1. FAST LOAD: Loads data from disk immediately (Offline-First)
+  Future<PrayerTimes?> loadCachedData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString(_storageKey);
+      if (jsonString != null) {
+        debugPrint("PrayerService: Loaded offline data from disk.");
+        _cachedData = PrayerTimes.fromJson(json.decode(jsonString));
+        return _cachedData;
+      }
+    } catch (e) {
+      debugPrint("PrayerService: Error loading cache: $e");
+    }
+    return null;
+  }
 
+  /// 2. NETWORK FETCH: Gets fresh data and saves to disk
   Future<PrayerTimes> fetchPrayerTimes() async {
     debugPrint("PrayerService: Fetching prayer times...");
     
@@ -53,6 +73,10 @@ class PrayerService {
         // Offload JSON parsing to an isolate to prevent UI jank
         _cachedData = await compute(_parsePrayerTimes, response.body);
         _lastFetchTime = DateTime.now();
+        
+        // PERSIST TO DISK
+        _saveToDisk(response.body);
+        
         return _cachedData!;
       } else {
         debugPrint("PrayerService: API Error ${response.statusCode}");
@@ -65,6 +89,16 @@ class PrayerService {
          throw Exception('Connection timed out. Please check your internet or try again.');
       }
       throw Exception('Error fetching prayer times: $e');
+    }
+  }
+  
+  Future<void> _saveToDisk(String jsonString) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_storageKey, jsonString);
+      debugPrint("PrayerService: Saved fresh data to disk.");
+    } catch (e) {
+      debugPrint("PrayerService: Failed to save to disk: $e");
     }
   }
 
@@ -84,6 +118,7 @@ class PrayerService {
         bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
         if (!serviceEnabled) {
           debugPrint("PrayerService: Location Service Disabled. Using Fallback.");
+          // Try to use cache if GPS is off, but fetchPrayerTimes handles that earlier
           return fallback; 
         }
 
@@ -101,16 +136,49 @@ class PrayerService {
           return fallback;
         }
 
-        debugPrint("PrayerService: Requesting current position...");
-        // Added timeout to prevent hanging indefinitely
-        final position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.medium,
-            timeLimit: const Duration(seconds: 5)); 
-            
-        debugPrint("PrayerService: GPS Position Found: ${position.latitude}, ${position.longitude}");
-        return {'lat': position.latitude, 'lon': position.longitude};
+        // 1. FAST TRACK: Try Last Known Position first (Instant)
+        debugPrint("PrayerService: Fetching last known position...");
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          // If less than 1 hour old, use it immediately
+          final age = DateTime.now().difference(lastKnown.timestamp);
+          if (age.inHours < 1) {
+             debugPrint("PrayerService: Using fresh cached GPS: ${lastKnown.latitude}, ${lastKnown.longitude}");
+             return {'lat': lastKnown.latitude, 'lon': lastKnown.longitude};
+          }
+        }
+
+        // 2. ACTIVE TRACK: Request current position
+        debugPrint("PrayerService: Requesting current position (10s limit)...");
+        try {
+          LocationSettings settings;
+          if (defaultTargetPlatform == TargetPlatform.android) {
+            settings = AndroidSettings(
+              accuracy: LocationAccuracy.medium,
+              timeLimit: const Duration(seconds: 10),
+              forceLocationManager: true,
+            );
+          } else {
+            settings = AppleSettings(
+              accuracy: LocationAccuracy.medium,
+              timeLimit: const Duration(seconds: 10),
+            );
+          }
+
+          final position = await Geolocator.getCurrentPosition(locationSettings: settings); 
+              
+          debugPrint("PrayerService: GPS Position Found: ${position.latitude}, ${position.longitude}");
+          return {'lat': position.latitude, 'lon': position.longitude};
+        } catch (e) {
+          debugPrint("PrayerService: getCurrentPosition timed out or failed. Falling back to LastKnown or Default.");
+          if (lastKnown != null) {
+            return {'lat': lastKnown.latitude, 'lon': lastKnown.longitude};
+          }
+          return fallback;
+        }
       } else {
         // --- WEB STRATEGY (IP Geolocation) ---
+        // ... (rest of web logic remains same)
         try {
           debugPrint("PrayerService: Calling IP API...");
           final response = await http.get(Uri.parse('http://ip-api.com/json')).timeout(const Duration(seconds: 3));

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:muslim_life_ai_demo/screens/dashboard_screen.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
-import 'package:muslim_life_ai_demo/widgets/grid_painter.dart';
+import 'package:muslim_mind/screens/dashboard_screen.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/glass_card.dart';
+import 'package:muslim_mind/widgets/grid_painter.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

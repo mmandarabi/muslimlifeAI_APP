@@ -1,4 +1,4 @@
-name: muslim_life_ai_demo
+name: muslim_mind
 description: A High-Fidelity Investor Demo for MuslimLife AI.
 publish_to: 'none'
 version: 1.0.8+100
@@ -32,6 +32,7 @@ dependencies:
   flutter_timezone: ^3.0.1
   wakelock_plus: ^1.2.1
   quran: ^1.2.9
+  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:
@@ -39,6 +40,7 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.13.1
   flutter_native_splash: ^2.4.0
+  shared_preferences_platform_interface: ^2.4.1
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -52,15 +54,15 @@ flutter_launcher_icons:
     theme_color: "#0B0C0E"
 
 flutter_native_splash:
-  color: "#0B0C0E"
+  color: "#202124"
   # Use background_image to try and fill the screen (iOS/Old Android)
   background_image: assets/images/logo_final.png
   image: assets/images/logo_final.png
   android_12:
     image: assets/images/logo_final.png
-    color: "#0B0C0E"
+    color: "#202124"
     # Blend the icon circle with the background to remove the "white circle" effect
-    icon_background_color: "#0B0C0E"
+    icon_background_color: "#202124"
 
 flutter:
   uses-material-design: true

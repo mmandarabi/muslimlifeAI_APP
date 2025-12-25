@@ -44,43 +44,43 @@ class DefaultFirebaseOptions {
     apiKey: 'AIzaSyAE4TaWUY3uBMFmN1GJY0DVTtMuOgfPRqA',
     appId: '1:776712200018:web:af6bd1bc7704037037a48b',
     messagingSenderId: '776712200018',
-    projectId: 'muslimlifeai-fcb93',
-    authDomain: 'muslimlifeai-fcb93.firebaseapp.com',
-    storageBucket: 'muslimlifeai-fcb93.firebasestorage.app',
+    projectId: 'MuslimMind-fcb93',
+    authDomain: 'MuslimMind-fcb93.firebaseapp.com',
+    storageBucket: 'MuslimMind-fcb93.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyC0nndcDQVpxBDJ6HPrzGBp2DqpjsoqEmw',
     appId: '1:776712200018:android:a12f1e2a94c68b7537a48b',
     messagingSenderId: '776712200018',
-    projectId: 'muslimlifeai-fcb93',
-    storageBucket: 'muslimlifeai-fcb93.firebasestorage.app',
+    projectId: 'MuslimMind-fcb93',
+    storageBucket: 'MuslimMind-fcb93.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAC3rWAtJKNYUgGA-X_7pBOWucZG_C6xps',
     appId: '1:776712200018:ios:2a97e65761c9bebe37a48b',
     messagingSenderId: '776712200018',
-    projectId: 'muslimlifeai-fcb93',
-    storageBucket: 'muslimlifeai-fcb93.firebasestorage.app',
-    iosBundleId: 'com.example.muslimLifeAiDemo',
+    projectId: 'MuslimMind-fcb93',
+    storageBucket: 'MuslimMind-fcb93.firebasestorage.app',
+    iosBundleId: 'com.example.MuslimMindDemo',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyAC3rWAtJKNYUgGA-X_7pBOWucZG_C6xps',
     appId: '1:776712200018:ios:2a97e65761c9bebe37a48b',
     messagingSenderId: '776712200018',
-    projectId: 'muslimlifeai-fcb93',
-    storageBucket: 'muslimlifeai-fcb93.firebasestorage.app',
-    iosBundleId: 'com.example.muslimLifeAiDemo',
+    projectId: 'MuslimMind-fcb93',
+    storageBucket: 'MuslimMind-fcb93.firebasestorage.app',
+    iosBundleId: 'com.example.MuslimMindDemo',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyAE4TaWUY3uBMFmN1GJY0DVTtMuOgfPRqA',
     appId: '1:776712200018:web:004ccd689a0b337337a48b',
     messagingSenderId: '776712200018',
-    projectId: 'muslimlifeai-fcb93',
-    authDomain: 'muslimlifeai-fcb93.firebaseapp.com',
-    storageBucket: 'muslimlifeai-fcb93.firebasestorage.app',
+    projectId: 'MuslimMind-fcb93',
+    authDomain: 'MuslimMind-fcb93.firebaseapp.com',
+    storageBucket: 'MuslimMind-fcb93.firebasestorage.app',
   );
 }

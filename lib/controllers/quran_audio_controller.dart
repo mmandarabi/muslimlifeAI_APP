@@ -27,7 +27,6 @@ class QuranAudioController extends ChangeNotifier {
   int? _currentSurahId;
   int? get currentSurahId => _currentSurahId;
   set currentSurahId(int? id) {
-    if (_currentSurahId == id) return;
     _currentSurahId = id;
     if (id != null) {
       _audioService.setContext(id);
@@ -97,9 +96,10 @@ class QuranAudioController extends ChangeNotifier {
   void _onSurahAutoChanged() {
     final newId = _audioService.currentSurahId;
     if (newId != null && newId != currentSurahId) {
-      currentSurahId = newId;
-      fetchTimestamps(newId);
-      notifyListeners();
+       debugPrint("QuranAudioController: Auto-Surah change detected -> $newId");
+       currentSurahId = newId; 
+       fetchTimestamps(newId);
+       notifyListeners();
     }
   }
 
@@ -123,7 +123,9 @@ class QuranAudioController extends ChangeNotifier {
     }
 
     if (bismillahDuration > 0 && segments.isNotEmpty) {
+      debugPrint("QuranAudioController: Applying Bismillah offset ${bismillahDuration}ms to Surah $surahId");
       finalSegments.add(AyahSegment(
+        surahId: surahId, // 🛑 FIX: Propagate Surah ID
         ayahNumber: bismillahId,
         timestampFrom: 0,
         timestampTo: bismillahDuration,
@@ -131,6 +133,7 @@ class QuranAudioController extends ChangeNotifier {
 
       for (var segment in segments) {
         finalSegments.add(AyahSegment(
+          surahId: surahId, // 🛑 FIX: Propagate Surah ID
           ayahNumber: segment.ayahNumber,
           timestampFrom: segment.timestampFrom + bismillahDuration,
           timestampTo: segment.timestampTo + bismillahDuration,
@@ -160,18 +163,37 @@ class QuranAudioController extends ChangeNotifier {
   void _updateActiveAyah() {
     if (ayahSegments.isEmpty || isTransitioning || isDownloading) return;
 
+    // 🛑 SYNC 2.0: Strict Context Guard
+    // Prevents "Data Leakage" where stale segments from Surah A are applied to Surah B's position.
+    // This handles the rapid-switch race condition.
+    if (ayahSegments.first.surahId != currentSurahId) {
+       debugPrint("QuranAudioController: GUARD BLOCKED UPDATE. Data(${ayahSegments.first.surahId}) != Active($currentSurahId)");
+       return;
+    }
+
     final currentMs = currentPosition.inMilliseconds;
     int? foundAyahId;
 
-    // Remove the -200ms delay that was causing highlighting to be "late"
-    final lookupMs = currentMs;
+    // 🛑 UX FIX: Positive Lookahead (+85ms). (Refined from 40ms)
+    // 1. Solves "MP3 Frame Snap": When seeking to 24580ms, the player might land at 24570ms. +40ms covered typical breaks.
+    // 2. Solves "Severe Jitter" (Surah 104): Some files have >50ms latency. 85ms covers this gap without triggering premature highlights (safe up to ~100ms).
+    // 3. Avoids "Premature Highlight": Still tight enough for fast recitation.
+    final lookupMs = currentMs + 85;
 
+    // 🛑 DATA FIX: Handle Overlapping Segments
+    // Some QDC timestamps have slight overlaps where End(Ayah X) > Start(Ayah X+1).
+    // If we simply `break` on the first match, we might pick the Previous Ayah at the exact boundary.
+    // Solution: Collect all candidates and pick the one with the HIGHEST timestampFrom (The latest starting one).
+    
+    AyahSegment? bestMatch;
     for (var segment in ayahSegments) {
       if (lookupMs >= segment.timestampFrom && lookupMs < segment.timestampTo) {
-        foundAyahId = segment.ayahNumber;
-        break;
+        if (bestMatch == null || segment.timestampFrom > bestMatch.timestampFrom) {
+          bestMatch = segment;
+        }
       }
     }
+    foundAyahId = bestMatch?.ayahNumber;
 
     if (foundAyahId != null && foundAyahId != activeAyahId) {
       // 🛑 UX FIX: Avoid highlighting before playback starts or if paused at 0.
@@ -216,8 +238,26 @@ class QuranAudioController extends ChangeNotifier {
       if (activeAyahId! < 1 || activeAyahId! > surah.verses.length) return;
 
       final qs = QuranPageService();
-      final audioPage = qs.getPageNumber(surah.id, activeAyahId!);
       final visualPage = (pageController.page?.round() ?? currentVisualPage) + 1;
+      
+      // 🛑 UX FIX: Stabilization Check 🛑
+      // Before calculating ANY jump, check if the ayah is ALREADY visible on the current page.
+      final pageData = qs.getPageData(visualPage);
+      bool isVisibleOnCurrentPage = false;
+      for (var entry in pageData) {
+        if (entry['surah'] == surah.id && 
+            activeAyahId! >= entry['start']! && 
+            activeAyahId! <= entry['end']!) {
+           isVisibleOnCurrentPage = true;
+           break;
+        }
+      }
+
+      if (isVisibleOnCurrentPage) {
+        return; 
+      }
+
+      final audioPage = qs.getPageNumber(surah.id, activeAyahId!);
 
       // 🛑 UX FIX: Smarter Follow Gate 🛑
       // If audio is on a NEW page (not visualPage), we only turn if:
@@ -247,8 +287,33 @@ class QuranAudioController extends ChangeNotifier {
     }
   }
 
+  int? _lastRequestedAyahId;
+  DateTime? _lastIntentTime;
+
   // Playback Controls
   void playSurah(int surahId, {int? ayahNumber}) {
+    // 🛑 UX FIX: Duplicate Intent Guard (Robust)
+    // Prevents rapid-fire taps (Tap + DoubleTap conflict) from resetting the player.
+    // We check against the LAST REQUESTED Ayah, not the async activeAyahId state.
+    if (ayahNumber != null) {
+      final now = DateTime.now();
+      if (surahId == currentSurahId && 
+          _lastRequestedAyahId == ayahNumber && 
+          _lastIntentTime != null && 
+          now.difference(_lastIntentTime!) < const Duration(milliseconds: 500)) {
+        // debugPrint("QuranAudioController: Ignored duplicate play intent for Ayah $ayahNumber");
+        return;
+      }
+      _lastIntentTime = now;
+      _lastRequestedAyahId = ayahNumber;
+    } else {
+      // General Surah Play shouldn't block specific Ayah seeks, but should track time
+      _lastIntentTime = DateTime.now();
+      _lastRequestedAyahId = null;
+    }
+
+    isBrowsing = false; 
+    currentSurahId = surahId; // 🛑 HIGHLIGHT FIX: Set immediately for instant UI feedback
     _audioService.playSurah(surahId, ayahNumber: ayahNumber);
   }
 

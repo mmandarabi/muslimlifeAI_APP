@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/glass_card.dart';
 
 class CommunityScreen extends StatelessWidget {
-  const CommunityScreen({super.key});
+  final VoidCallback? onBack;
+  const CommunityScreen({super.key, this.onBack});
 
   @override
   Widget build(BuildContext context) {
@@ -14,6 +16,30 @@ class CommunityScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Standard Back Button Header
+            if (onBack != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    onBack!();
+                  },
+                  child: Align(
+                     alignment: Alignment.centerLeft,
+                     child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      child: const Icon(LucideIcons.chevron_left, color: Colors.white, size: 20),
+                    ),
+                  ),
+                ),
+              ),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

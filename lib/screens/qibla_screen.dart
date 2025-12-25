@@ -7,14 +7,16 @@ import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:adhan/adhan.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:glass_kit/glass_kit.dart';
 import 'package:vector_math/vector_math.dart' show radians;
+import 'package:google_fonts/google_fonts.dart';
 
 class QiblaScreen extends StatefulWidget {
-  const QiblaScreen({super.key});
+  final VoidCallback? onBack;
+  const QiblaScreen({super.key, this.onBack});
 
   @override
   State<QiblaScreen> createState() => _QiblaScreenState();
@@ -77,74 +79,121 @@ class _QiblaScreenState extends State<QiblaScreen> {
         return;
       }
 
-      // 3. Get Location
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-        timeLimit: const Duration(seconds: 5), // Prevent infinite loading
-      );
+      // 3. Get Location (Fast Track First)
+      Position? position;
+      debugPrint("QiblaScreen: Fetching last known position...");
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      
+      if (lastKnown != null) {
+        final age = DateTime.now().difference(lastKnown.timestamp);
+        if (age.inMinutes < 30) {
+          debugPrint("QiblaScreen: Using fresh cached position.");
+          position = lastKnown;
+        }
+      }
+
+      if (position == null) {
+        debugPrint("QiblaScreen: Requesting current position (45s limit)...");
+        LocationSettings settings;
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          settings = AndroidSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: const Duration(seconds: 45), // Increased to 45s
+            forceLocationManager: true,
+          );
+        } else {
+          settings = AppleSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: const Duration(seconds: 45), // Increased to 45s
+          );
+        }
+        position = await Geolocator.getCurrentPosition(locationSettings: settings);
+      }
       
       // 4. Calculate Qibla
-      final coordinates = Coordinates(position.latitude, position.longitude);
+      final coordinates = Coordinates(position!.latitude, position!.longitude);
       final qibla = Qibla(coordinates);
       
       setState(() {
         _currentPosition = position;
         _qiblaDirection = qibla.direction;
-        _distanceInKm = _calculateDistance(position.latitude, position.longitude);
+        _distanceInKm = _calculateDistance(position!.latitude, position!.longitude);
         _hasPermissions = true;
         _isLoading = false;
         _error = null; // Clear any previous error
       });
 
     } catch (e) {
-      debugPrint("QiblaScreen: Location error: $e. Using fallback.");
-      // Fallback: Washington DC (38.9072, -77.0369)
+      debugPrint("QiblaScreen: Location error: $e. Using fallback (Belmont, VA).");
+      
+      // FALLBACK: Belmont, VA
       final fallbackPosition = Position(
-        latitude: 38.9072,
-        longitude: -77.0369,
-        timestamp: DateTime.now(),
-        accuracy: 0,
-        altitude: 0,
-        heading: 0,
-        speed: 0,
-        speedAccuracy: 0,
-        altitudeAccuracy: 0,
-        headingAccuracy: 0,
+        latitude: 39.0207, 
+        longitude: -77.4980, 
+        timestamp: DateTime.now(), 
+        accuracy: 0, 
+        altitude: 0, 
+        heading: 0, 
+        speed: 0, 
+        speedAccuracy: 0, 
+        altitudeAccuracy: 0, 
+        headingAccuracy: 0 
       );
       
-      // Calculate Qibla for fallback
       final coordinates = Coordinates(fallbackPosition.latitude, fallbackPosition.longitude);
       final qibla = Qibla(coordinates);
       
-      setState(() {
-        _currentPosition = fallbackPosition;
-        _qiblaDirection = qibla.direction;
-        _distanceInKm = _calculateDistance(fallbackPosition.latitude, fallbackPosition.longitude);
-        _hasPermissions = true;
-        _isLoading = false;
-        _error = null;
-      });
+      if(mounted) {
+        setState(() {
+          _currentPosition = fallbackPosition;
+          _qiblaDirection = qibla.direction;
+          _distanceInKm = _calculateDistance(fallbackPosition.latitude, fallbackPosition.longitude);
+          _hasPermissions = true;
+          _isLoading = false;
+          _error = null;
+        });
+        
+        String msg = "GPS Signal Not Found. Using default location.";
+        if (e.toString().contains('TimeoutException')) {
+          msg = "GPS Timeout: Using default location (Belmont, VA). Tap to retry.";
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+             content: Text(msg),
+             backgroundColor: Colors.orange,
+             duration: const Duration(seconds: 5),
+             action: SnackBarAction(
+               label: "RETRY", 
+               textColor: Colors.white,
+               onPressed: _initCompass
+             ),
+           )
+        );
+      }
     }
   }
-
-  // Basic Haversine for "Distance to Kaaba"
-  double _calculateDistance(double lat, double lon) {
-    const double kaabaLat = 21.422487;
-    const double kaabaLon = 39.826206;
-    const double p = 0.017453292519943295;
-    final a = 0.5 -
-        math.cos((kaabaLat - lat) * p) / 2 +
-        math.cos(lat * p) * math.cos(kaabaLat * p) * (1 - math.cos((kaabaLon - lon) * p)) / 2;
+  
+  // Haversine visualization
+  double _calculateDistance(double lat1, double lon1) {
+    const double kaabaLat = 21.4225;
+    const double kaabaLon = 39.8262;
+    // Simplified approx distance logic if needed, or stick to library if it had it.
+    // 'adhan' dart package handles calculation but Qibla object returns direction.
+    // We can implement Haversine manually for distance display.
+    const p = 0.017453292519943295;
+    final c = math.cos;
+    final a = 0.5 - c((kaabaLat - lat1) * p) / 2 +
+        c(lat1 * p) * c(kaabaLat * p) *
+            (1 - c((kaabaLon - lon1) * p)) / 2;
     return 12742 * math.asin(math.sqrt(a));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) return const _WebFallbackView();
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = AppColors.getBackgroundColor(context);
-    final textColor = AppColors.getTextPrimary(context);
+    // Strict Palette Enforcements
+    const backgroundColor = Color(0xFF202124);
+    const textColor = Color(0xFFF1F3F4);
 
     if (_isLoading) {
       return Scaffold(
@@ -190,7 +239,6 @@ class _QiblaScreenState extends State<QiblaScreen> {
         final double? accuracy = compassEvent.accuracy;
         
         if (heading == null) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
           final backgroundColor = AppColors.getBackgroundColor(context);
           final textColor = AppColors.getTextPrimary(context);
           return Scaffold(
@@ -199,27 +247,13 @@ class _QiblaScreenState extends State<QiblaScreen> {
           );
         }
         
-        // Logic:
-        // Heading = 0 (North) -> Needle should point 0 relative to screen
-        // But we want Needle to point to Qibla.
-        // Screen North = 0.
-        // Qibla = 58 (for example).
-        // If Phone points North (0), Needle should point 58.
-        // If Phone points East (90), Needle should point 58 - 90 = -32.
-        
-        // Final Rotation = QiblaDirection - DeviceHeading
-        // We use Transform.rotate which takes Angle in Radians.
-        
-        // For the Compass DIAL (North Card):
-        // It should rotate opposite to device heading so "N" stays North.
-        // Rotation = -DeviceHeading.
-        
         return _CompassUI(
           heading: heading,
           qiblaDirection: _qiblaDirection ?? 0,
           accuracy: accuracy ?? 0,
           distanceInKm: _distanceInKm ?? 0,
           locationName: "${_currentPosition?.latitude.toStringAsFixed(2)}, ${_currentPosition?.longitude.toStringAsFixed(2)}",
+          onBack: widget.onBack,
         );
       },
     );
@@ -232,6 +266,7 @@ class _CompassUI extends StatefulWidget {
   final double accuracy;
   final double distanceInKm;
   final String locationName;
+  final VoidCallback? onBack;
 
   const _CompassUI({
     required this.heading,
@@ -239,6 +274,7 @@ class _CompassUI extends StatefulWidget {
     required this.accuracy,
     required this.distanceInKm,
     required this.locationName,
+    this.onBack,
   });
 
   @override
@@ -246,19 +282,11 @@ class _CompassUI extends StatefulWidget {
 }
 
 class _CompassUIState extends State<_CompassUI> {
-  bool _showMap = false;
+  bool _showRawData = false;
   DateTime _lastHaptic = DateTime.now();
 
   void _checkAlignment() {
-    // Current Needle Rotation relative to standard Top-Centre 
-    // Needle Angle = Qibla - Heading.
-    // If Needle Angle is near 0, user is pointing at Qibla? 
-    // Wait. 
-    // If I hold phone pointing at Qibla (Heading = Qibla), then (Qibla - Heading) = 0.
-    // So Needle Points UP (0 degrees relative to phone). Correct.
-    
     final diff = (widget.qiblaDirection - widget.heading);
-    // Normalize to -180 to 180
     double normalizedDiff = (diff + 180) % 360 - 180;
     
     if (normalizedDiff.abs() < 2.0) {
@@ -279,25 +307,20 @@ class _CompassUIState extends State<_CompassUI> {
   @override
   Widget build(BuildContext context) {
     // Rotation Logic
-    // Dial Rotation: Opposes heading so 'N' points North.
     final dialRotation = -widget.heading * (math.pi / 180);
-    
-    // Needle Rotation: Points to Qibla relative to North.
-    // Use the Dial as parent? No, usually distinct layers.
-    // Layer 1: Dial (Rotates -Heading). 'N' is at -Heading.
-    // Layer 2: Needle. The needle should be fixed relative to the DIAL (pointing at Qibla on the dial).
-    // OR Layer 2: Needle relative to SCREEN.
-    // Screen Up = 0.
-    // Qibla relative to Screen = Qibla - Heading.
     final needleRotation = (widget.qiblaDirection - widget.heading) * (math.pi / 180);
     final mediaQuery = MediaQuery.of(context);
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = AppColors.getBackgroundColor(context);
-    final textColor = AppColors.getTextPrimary(context);
-    final secondaryTextColor = AppColors.getTextSecondary(context);
-    final accentColor = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4);
+    // Strict Palette Enforcements
+    const isDark = true;
+    const backgroundColor = Color(0xFF202124);
+    const textColor = Color(0xFFF1F3F4);
+    const secondaryTextColor = Color(0xFF9AA0A6); // Muted Text for dark mode
 
+    // Accuracy Logic (Lower is better usually for cross platform, but verify. iOS: degrees err. Android: Status 0-3)
+    // Assuming degrees error. >15 is bad.
+    bool interference = widget.accuracy > 15; 
+    
     return MediaQuery(
       data: mediaQuery.copyWith(textScaler: TextScaler.noScaling),
       child: Scaffold(
@@ -308,27 +331,33 @@ class _CompassUIState extends State<_CompassUI> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(LucideIcons.arrow_left, color: textColor),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (widget.onBack != null) {
+              widget.onBack!();
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
         title: Column(
           children: [
             Text(
               "Qibla Compass",
-              style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w600),
+              style: GoogleFonts.outfit(color: textColor, fontSize: 16, fontWeight: FontWeight.w600),
             ),
              Text(
               widget.locationName,
-              style: TextStyle(color: secondaryTextColor, fontSize: 12),
+              style: GoogleFonts.inter(color: secondaryTextColor, fontSize: 12),
             ),
           ],
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(_showMap ? LucideIcons.compass : LucideIcons.map, color: textColor),
+            icon: Icon(LucideIcons.info, color: _showRawData ? AppColors.primary : textColor),
             onPressed: () {
               setState(() {
-                _showMap = !_showMap;
+                _showRawData = !_showRawData;
               });
             },
           )
@@ -336,44 +365,37 @@ class _CompassUIState extends State<_CompassUI> {
       ),
       body: Stack(
         children: [
-          // Background Gradient
+          // Background: Strictly #202124 (Raisin Black)
           Positioned.fill(
             child: Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.topCenter,
-                  radius: 1.5,
-                  colors: [
-                    isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF1F3F4),
-                    backgroundColor,
-                  ],
-                ),
-              ),
+              color: const Color(0xFF202124),
             ),
           ),
 
-          if (_showMap)
-            Center(child: Text("Map View Placeholder", style: TextStyle(color: textColor)))
-          else
-            SafeArea(
+           SafeArea(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                   // 1. Digital Heading Display
+                   // 1. Digital Heading Display: Surfaces/Cards Strictly #35363A
                    Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                      decoration: BoxDecoration(
-                       color: textColor.withValues(alpha: 0.05),
-                       borderRadius: BorderRadius.circular(20),
-                       border: Border.all(color: textColor.withValues(alpha: 0.1)),
+                       color: const Color(0xFF35363A),
+                       borderRadius: BorderRadius.circular(24),
+                       boxShadow: [
+                         BoxShadow(
+                           color: Colors.black.withValues(alpha: 0.2),
+                           blurRadius: 10,
+                           offset: const Offset(0, 4),
+                         ),
+                       ],
                      ),
                      child: Text(
                        "${widget.heading.toStringAsFixed(0)}° ${getCardinalDirection(widget.heading)}",
-                       style: TextStyle(
-                         color: textColor,
+                       style: GoogleFonts.sourceCodePro(
+                         color: const Color(0xFFF1F3F4), // Strictly #F1F3F4
                          fontSize: 24,
                          fontWeight: FontWeight.bold,
-                         fontFamily: 'Courier', // Monospace for stability
                        ),
                      ),
                    ),
@@ -390,10 +412,7 @@ class _CompassUIState extends State<_CompassUI> {
                          Transform.rotate(
                            angle: dialRotation,
                            child: Image.asset(
-                             'assets/images/compass_dial.png', // Ensure you have a dial asset or use a shape
-                             // If no asset, fallback to a drawn shape?
-                             // Let's assume user might not have asset. I'll build a simple one using code if image fails?
-                             // No, I will use a Container with a border and "N" text for now if image missing.
+                             'assets/images/compass_dial.png', // Fallback handled?
                              errorBuilder: (c,e,s) => _buildFallbackDial(),
                            ),
                          ),
@@ -405,7 +424,13 @@ class _CompassUIState extends State<_CompassUI> {
                              mainAxisSize: MainAxisSize.min,
                              children: [
                                const Icon(LucideIcons.map_pin, color: AppColors.primary, size: 40), // The tip
-                               Container(width: 2, height: 60, color: AppColors.primary), // The shaft
+                               Container(width: 4, height: 60, 
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(2),
+                                  boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.5), blurRadius: 10)]
+                                ),
+                               ), // The shaft
                                const SizedBox(height: 60), // Counterbalance length
                              ],
                            ),
@@ -430,9 +455,7 @@ class _CompassUIState extends State<_CompassUI> {
                        children: [
                          Flexible(child: _buildInfoBadge("QIBLA", "${widget.qiblaDirection.toStringAsFixed(0)}°")),
                          Flexible(child: _buildInfoBadge("DISTANCE", "${widget.distanceInKm.round()} km")),
-                         Flexible(child: _buildInfoBadge("ACCURACY", widget.accuracy < 15 ? "High" : "Low", 
-                           color: widget.accuracy < 15 ? Colors.green : Colors.orange
-                         )),
+                         Flexible(child: _buildSignalIndicator(widget.accuracy)),
                        ],
                      ),
                    )
@@ -441,29 +464,78 @@ class _CompassUIState extends State<_CompassUI> {
             ),
             
             // Interference Warning
-            if (widget.accuracy > 45) // Arbitrary threshold for 'bad' interference
-              Container(
-                color: (isDark ? Colors.black : Colors.white).withOpacity(0.9),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(LucideIcons.magnet, color: Colors.orange, size: 64),
-                      const SizedBox(height: 16),
-                      Text("Magnetic Interference", style: TextStyle(color: textColor, fontSize: 20)),
-                      Text("Wave phone in figure-8", style: TextStyle(color: secondaryTextColor)),
-                    ],
-                  ),
-                ),
-              )
+            if (interference && !_showRawData)
+              _buildInterferenceOverlay(),
+
+            // Raw Data Overlay
+            if (_showRawData)
+               _buildRawDataOverlay(),
         ],
       ),
     ),
   );
 }
 
+  Widget _buildInterferenceOverlay() {
+      // Strict Card Color
+      return Container(
+        color: const Color(0xFF35363A).withOpacity(0.95),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(LucideIcons.infinity, color: Colors.orange, size: 80)
+              .animate(onPlay: (c) => c.repeat()).rotate(duration: 2000.ms), // Rotate visually simulates "Figure 8"
+              const SizedBox(height: 24),
+              Text("Calibrate Compass", style: GoogleFonts.outfit(color: AppColors.getTextPrimary(context), fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text("Tilt phone in a figure-8 motion", style: GoogleFonts.inter(color: AppColors.getTextSecondary(context))),
+            ],
+          ),
+        ),
+      );
+  }
+
+  Widget _buildRawDataOverlay() {
+      return Container(
+         margin: const EdgeInsets.only(top: 100, left: 20, right: 20, bottom: 20),
+         padding: const EdgeInsets.all(20),
+         decoration: BoxDecoration(
+           color: const Color(0xFF35363A).withOpacity(0.95),
+           borderRadius: BorderRadius.circular(16),
+         ),
+         child: SingleChildScrollView(
+           child: Column(
+             crossAxisAlignment: CrossAxisAlignment.start,
+             mainAxisSize: MainAxisSize.min,
+             children: [
+               Text("SENSOR DIAGNOSTICS", style: GoogleFonts.sourceCodePro(color: AppColors.primary, fontWeight: FontWeight.bold)),
+               const Divider(color: Colors.white24),
+               _buildRawRow("Heading", "${widget.heading.toStringAsFixed(4)}°"),
+               _buildRawRow("Accuracy", "${widget.accuracy.toStringAsFixed(2)}"),
+               _buildRawRow("Qibla Angle", "${widget.qiblaDirection.toStringAsFixed(4)}°"),
+               _buildRawRow("Distance", "${widget.distanceInKm.toStringAsFixed(2)} km"),
+               _buildRawRow("Lat/Long", widget.locationName),
+             ],
+           ),
+         ),
+      );
+  }
+
+  Widget _buildRawRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: GoogleFonts.sourceCodePro(color: Colors.white70, fontSize: 12)),
+          Text(value, style: GoogleFonts.sourceCodePro(color: Colors.white, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFallbackDial() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = AppColors.getTextPrimary(context);
     return Container(
       decoration: BoxDecoration(
@@ -494,59 +566,73 @@ class _CompassUIState extends State<_CompassUI> {
     return "";
   }
   
-  Widget _buildInfoBadge(String label, String value, {Color? color}) {
+  Widget _buildInfoBadge(String label, String value) {
     final secondaryTextColor = AppColors.getTextSecondary(context);
+    final textColor = AppColors.getTextPrimary(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label, 
-          style: TextStyle(color: secondaryTextColor.withValues(alpha: 0.5), fontSize: 10, letterSpacing: 1.5),
+          style: GoogleFonts.outfit(color: secondaryTextColor.withValues(alpha: 0.5), fontSize: 10, letterSpacing: 1.5, fontWeight: FontWeight.w600),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            value, 
-            style: TextStyle(color: color ?? AppColors.getTextPrimary(context), fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+        Text(
+          value, 
+          style: GoogleFonts.outfit(color: textColor, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ],
     );
   }
-}
 
-class _WebFallbackView extends StatelessWidget {
-  const _WebFallbackView();
+  Widget _buildSignalIndicator(double accuracy) {
+    // Visualization: 3 Bars.
+    // If acc < 15: 3 Green Bars
+    // If acc < 45: 2 Orange Bars
+    // Else: 1 Red Bar
+    
+    int strength = 0;
+    Color color = Colors.red;
+    if (accuracy < 15) {
+      strength = 3;
+      color = AppColors.primary;
+    } else if (accuracy < 45) {
+      strength = 2;
+      color = Colors.orange;
+    } else {
+      strength = 1;
+      color = Colors.red;
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    final backgroundColor = AppColors.getBackgroundColor(context);
-    final textColor = AppColors.getTextPrimary(context);
-    final secondaryTextColor = AppColors.getTextSecondary(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+         const Text("SIGNAL", style: TextStyle(fontSize: 10, letterSpacing: 1.5, fontWeight: FontWeight.w600, color: Colors.grey)),
+         const SizedBox(height: 6),
+         Row(
+           mainAxisSize: MainAxisSize.min,
+           crossAxisAlignment: CrossAxisAlignment.end, // Align bottom
+           children: [
+             _bar(1, strength, color, 12),
+             const SizedBox(width: 2),
+             _bar(2, strength, color, 16),
+             const SizedBox(width: 2),
+             _bar(3, strength, color, 20),
+           ],
+         )
+      ],
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(backgroundColor: Colors.transparent, iconTheme: IconThemeData(color: textColor)),
-      body: Center(
-        child: GlassContainer(
-           height: 200, width: 300,
-           borderRadius: BorderRadius.circular(20),
-           gradient: LinearGradient(colors: [textColor.withOpacity(0.05), textColor.withOpacity(0.02)]),
-           borderGradient: LinearGradient(colors: [textColor.withOpacity(0.1), Colors.transparent]),
-           child: Column(
-             mainAxisAlignment: MainAxisAlignment.center,
-             children: [
-               Icon(LucideIcons.compass, size: 48, color: secondaryTextColor),
-               const SizedBox(height: 16),
-               Text("Compass not supported on Web", style: TextStyle(color: textColor)),
-               const SizedBox(height: 8),
-               Text("Please use the Mobile App", style: TextStyle(color: secondaryTextColor, fontSize: 12)),
-             ],
-           ),
-        ),
+  Widget _bar(int index, int strength, Color color, double height) {
+    return Container(
+      width: 4,
+      height: height,
+      decoration: BoxDecoration(
+        color: index <= strength ? color : color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }

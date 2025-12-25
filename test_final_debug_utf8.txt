@@ -1,0 +1,63 @@
+﻿00:00 +0: loading D:/solutions/MuslimLifeAI_demo/test/playback_intent_navigation_test.dart
+00:00 +0: (setUpAll)
+00:00 +0: Playback Intent & Navigation Integration Test
+TRACE: UnifiedAudioService.stop() called. Current Session: 0
+STEP 1: Tap Surah 1 from Library
+TRACE: UnifiedAudioService.playSurah(1, ayah: null) - QUEUED NOTIFIER UPDATE
+TRACE: UnifiedAudioService.playSurah(1) - SESSION 2 START
+UnifiedAudioService: Initializing Persistent AudioPlayer instance.
+UnifiedAudioService: Warning - QDC URL missing for Surah 1, falling back to legacy source.
+UnifiedAudioService: Session 2 loading from https://server11.mp3quran.net/sds/001.mp3
+TEST_PLAYER: Rendering Surah: ID=1, Name=Al Fatiha
+LOG: STEP 1 PASSED
+LOG: NAVIGATION PERSISTENCE PASSED
+STEP 3: Select Surah 2 (Override)
+TRACE: UnifiedAudioService.playSurah(2, ayah: null) - QUEUED NOTIFIER UPDATE
+TRACE: UnifiedAudioService.playSurah(2) - SESSION 3 START
+TEST_PLAYER: Rendering Surah: ID=2, Name=Al Baqarah
+LOG: STEP 3 PASSED
+STEP 4: Tap Surah 2 Again (Simulation of Same Ayah)
+TRACE: UnifiedAudioService.playSurah(2, ayah: null) - QUEUED NOTIFIER UPDATE
+TRACE: UnifiedAudioService.playSurah(2) - SESSION 4 START
+TEST_PLAYER: Rendering Surah: ID=2, Name=Al Baqarah
+LOG: STEP 4 PASSED
+TRACE: UnifiedAudioService.playSurah(2, ayah: null) - QUEUED NOTIFIER UPDATE
+TRACE: UnifiedAudioService.playSurah(2) - SESSION 5 START
+TEST_PLAYER: Rendering Surah: ID=2, Name=Al Baqarah
+LOG: STEP 4 PASSED
+STEP 7: Global Stop
+TRACE: UnifiedAudioService.stop() called. Current Session: 5
+TEST PASSED
+Pending timers:
+Timer (duration: 0:00:00.016000, periodic: true), created:
+#0      new FakeTimer._ (package:fake_async/fake_async.dart:342:62)
+#1      FakeAsync._createTimer (package:fake_async/fake_async.dart:260:29)
+#2      FakeAsync.run.<anonymous closure> (package:fake_async/fake_async.dart:187:15)
+#5      AudioPlayer.createPositionStream.<anonymous closure> (package:just_audio/just_audio.dart:672:28)
+#25     FakeAsync.run.<anonymous closure>.<anonymous closure> (package:fake_async/fake_async.dart:189:18)
+#26     FakeAsync.flushMicrotasks (package:fake_async/fake_async.dart:200:32)
+#27     AutomatedTestWidgetsFlutterBinding.runTest.<anonymous closure> (package:flutter_test/src/binding.dart:1581:17)
+(elided 36 frames from dart:async and package:stack_trace)
+
+ΓòÉΓòÉΓòí EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK Γò₧ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+The following assertion was thrown running a test:
+A Timer is still pending even after the widget tree was disposed.
+'package:flutter_test/src/binding.dart':
+Failed assertion: line 1617 pos 12: '!timersPending'
+
+When the exception was thrown, this was the stack:
+#2      AutomatedTestWidgetsFlutterBinding._verifyInvariants (package:flutter_test/src/binding.dart:1617:12)
+#3      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1078:7)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 3 frames from class _AssertionError and package:stack_trace)
+
+The test description was:
+  Playback Intent & Navigation Integration Test
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+00:00 +0 -1: Playback Intent & Navigation Integration Test [E]
+  Test failed. See exception logs above.
+  The test description was: Playback Intent & Navigation Integration Test
+  
+00:00 +0 -1: (tearDownAll)
+00:00 +0 -1: Some tests failed.

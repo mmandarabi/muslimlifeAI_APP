@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:muslim_life_ai_demo/services/unified_audio_service.dart';
+import 'package:muslim_mind/services/unified_audio_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

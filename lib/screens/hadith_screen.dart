@@ -1,18 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/glass_card.dart';
 
 class HadithScreen extends StatelessWidget {
-  const HadithScreen({super.key});
+  final VoidCallback? onBack;
+  const HadithScreen({super.key, this.onBack});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          // Standard Back Button Header
+          if (onBack != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  onBack!();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
+                  child: const Icon(LucideIcons.chevron_left, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
+
           // Daily Hadith Card
           GlassCard(
             padding: const EdgeInsets.all(20),
@@ -138,6 +162,7 @@ class HadithScreen extends StatelessWidget {
           ),
           const SizedBox(height: 80), // Bottom padding
         ],
+      ),
       ),
     );
   }

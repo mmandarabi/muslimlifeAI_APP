@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/glass_card.dart';
 
 class MilestoneShareCard extends StatelessWidget {
   const MilestoneShareCard({super.key});
@@ -92,7 +92,7 @@ class MilestoneShareCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    "MuslimLife AI",
+                    "MuslimMind",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey,
                           letterSpacing: 1.5,

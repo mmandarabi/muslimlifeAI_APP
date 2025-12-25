@@ -3,23 +3,27 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   // Brand Colors
-  static const Color primary = Color(0xFF10B981); // Emerald Green
-  
+  static const Color primary = Color(0xFF10B981); // Sanctuary Emerald
+  static const Color accent = Color(0xFFD4AF37);  // Aged Gold
+
   // Sanctuary Dark Palette
-  static const Color background = Color(0xFF0D1310); // Sanctuary Off-Black
-  static const Color cardDark = Color(0xFF1A1F1D);
-  static const Color textPrimaryDark = Color(0xFFF8F9FA); // Soft Paper
-  static const Color textSecondaryDark = Color(0xFF94A3B8);
+  static const Color background = Color(0xFF202124); // Raisin Black
+  static const Color cardDark = Color(0xFF35363A);   // Surface Elevation
+  static const Color textPrimaryDark = Color(0xFFF1F3F4); // Anti-Flash White
+  static const Color textSecondaryDark = Color(0xFF9AA0A6); // Muted Text
 
   // Sanctuary Light Palette
-  static const Color backgroundLight = Color(0xFFFDFBF7); // Soft Parchment
-  static const Color cardLight = Colors.white;
-  static const Color textPrimaryLight = Color(0xFF1A1A1A); // Deep Charcoal
-  static const Color textSecondaryLight = Color(0xFF64748B);
+  static const Color backgroundLight = Color(0xFFF1F3F4); // Anti-Flash White
+  static const Color cardLight = Color(0xFFFFFFFF);       // Pure White
+  static const Color textPrimaryLight = Color(0xFF202124); // Raisin Black
+  static const Color textSecondaryLight = Color(0xFF5F6368); // Muted Text
 
   // Helper getters for dynamic context
   static Color getBackgroundColor(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? background : backgroundLight;
+  
+  static Color getSurfaceColor(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? cardDark : cardLight;
       
   static Color getTextPrimary(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? textPrimaryDark : textPrimaryLight;
@@ -34,12 +38,17 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
+      primaryColor: AppColors.primary,
+      cardColor: AppColors.cardDark,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         brightness: Brightness.dark,
+        surface: AppColors.cardDark,
         background: AppColors.background,
+        onSurface: AppColors.textPrimaryDark,
       ),
       textTheme: _textTheme(AppColors.textPrimaryDark, AppColors.textSecondaryDark),
+      iconTheme: const IconThemeData(color: AppColors.textPrimaryDark),
     );
   }
 
@@ -48,12 +57,17 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.backgroundLight,
+      primaryColor: AppColors.primary,
+      cardColor: AppColors.cardLight,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         brightness: Brightness.light,
+        surface: AppColors.cardLight,
         background: AppColors.backgroundLight,
+        onSurface: AppColors.textPrimaryLight,
       ),
       textTheme: _textTheme(AppColors.textPrimaryLight, AppColors.textSecondaryLight),
+      iconTheme: const IconThemeData(color: AppColors.textPrimaryLight),
     );
   }
 
@@ -69,6 +83,16 @@ class AppTheme {
         fontWeight: FontWeight.bold,
         color: textColor,
       ),
+      titleLarge: GoogleFonts.outfit(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: textColor,
+      ),
+      titleMedium: GoogleFonts.outfit(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: textColor,
+      ),
       bodyLarge: GoogleFonts.inter(
         fontSize: 16,
         color: textColor,
@@ -81,6 +105,11 @@ class AppTheme {
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: textColor,
+      ),
+      labelSmall: GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: secondaryColor,
       ),
     );
   }

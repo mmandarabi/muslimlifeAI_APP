@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:muslim_life_ai_demo/services/ai_chat_service.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
+import 'package:muslim_mind/services/ai_chat_service.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/glass_card.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final VoidCallback? onBack;
+  const ChatScreen({super.key, this.onBack});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -75,7 +76,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     // Use SafeArea to ensure header matches other tabs
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0C0E),
+      backgroundColor: const Color(0xFF202124),
       body: SafeArea(
         child: Column(
           children: [
@@ -88,8 +89,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: IconButton(
-                      icon: const Icon(LucideIcons.arrow_left, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(LucideIcons.chevron_left, color: Colors.white),
+                      onPressed: () {
+                        if (widget.onBack != null) {
+                          widget.onBack!();
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),

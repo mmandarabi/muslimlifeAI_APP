@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:muslim_life_ai_demo/models/prayer_times.dart';
-import 'package:muslim_life_ai_demo/services/prayer_service.dart';
-import 'package:muslim_life_ai_demo/screens/login_screen.dart';
-import 'package:muslim_life_ai_demo/screens/mission_screen.dart';
-import 'package:muslim_life_ai_demo/screens/prayer_times_screen.dart';
-import 'package:muslim_life_ai_demo/screens/qibla_screen.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/ai_insight_carousel.dart';
-import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:muslim_mind/models/prayer_times.dart';
+import 'package:muslim_mind/services/prayer_service.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/glass_card.dart';
+import 'package:muslim_mind/widgets/settings_bottom_sheet.dart';
+import 'package:shimmer/shimmer.dart';
 
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key});
+  final Function(int) onNavigate;
+  const HomeTab({super.key, required this.onNavigate});
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -23,220 +21,465 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   PrayerTimes? _prayerTimes;
   bool _isLoading = true;
-  String? _errorMessage;
+  
+  // Dynamic State for Hero Card
+  String _nextPrayerName = "--";
+  String _nextPrayerTime = "--:--";
+  String _timeSuffix = ""; // AM/PM
 
   @override
   void initState() {
     super.initState();
-    _loadPrayerTimes();
+    // 1. Instant Cache Load (Offline First)
+    _loadCache();
+    // 2. Background Network Fetch
+    _refreshData();
   }
 
-  Future<void> _loadPrayerTimes() async {
+  Future<void> _loadCache() async {
+    final cached = await PrayerService().loadCachedData();
+    if (cached != null && mounted) {
+      setState(() {
+        _prayerTimes = cached;
+        _isLoading = false; // Show content immediately
+        _calculateNextPrayer(cached);
+      });
+    }
+  }
+
+  Future<void> _refreshData() async {
     try {
       final data = await PrayerService().fetchPrayerTimes();
       if (mounted) {
         setState(() {
           _prayerTimes = data;
           _isLoading = false;
+          _calculateNextPrayer(data);
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = "Unavailable";
-          _isLoading = false;
-        });
+      if (mounted && _prayerTimes == null) {
+         // Only stop loading if we have NO data at all
+         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  void _calculateNextPrayer(PrayerTimes data) {
+    final now = DateTime.now();
+    
+    // Parse all times
+    DateTime? parse(String t) {
+      try {
+        final d = DateFormat("HH:mm").parse(t.split(" ")[0]); // Handle "13:00" or "01:00 PM" robustly
+        return DateTime(now.year, now.month, now.day, d.hour, d.minute);
+      } catch (_) {
+         try {
+           final d = DateFormat("h:mm a").parse(t);
+           return DateTime(now.year, now.month, now.day, d.hour, d.minute);
+         } catch(e) { return null; }
+      }
+    }
+
+    final slots = [
+      MapEntry("Fajr", parse(data.fajr)),
+      MapEntry("Dhuhr", parse(data.dhuhr)),
+      MapEntry("Asr", parse(data.asr)),
+      MapEntry("Maghrib", parse(data.maghrib)),
+      MapEntry("Isha", parse(data.isha)),
+    ];
+
+    String nextName = "Fajr";
+    DateTime? nextTime = parse(data.fajr)?.add(const Duration(days: 1)); // Default to tomorrow Fajr
+
+    for (var slot in slots) {
+      if (slot.value != null && slot.value!.isAfter(now)) {
+        nextName = slot.key;
+        nextTime = slot.value;
+        break;
+      }
+    }
+
+    if (nextTime != null) {
+      final formatted = DateFormat("h:mm").format(nextTime);
+      final suffix = DateFormat("a").format(nextTime);
+      
+      setState(() {
+        _nextPrayerName = nextName;
+        _nextPrayerTime = formatted;
+        _timeSuffix = suffix;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "As-salamu alaykum",
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white70,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Yama",
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  const Icon(LucideIcons.shield_check, color: AppColors.primary),
-                  const SizedBox(width: 16),
-                  IconButton(
-                    icon: const Icon(LucideIcons.log_out, color: Colors.white54),
-                    tooltip: "Log Out",
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Logging out...")),
-                        );
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 30),
+    // Inherit Raisin Black from Dashboard via transparency to fix "Box within Box"
+    final textColor = AppColors.textPrimaryDark;
+    final secondaryTextColor = AppColors.textSecondaryDark;
+    final accentColor = AppColors.primary; // Sanctuary Emerald
 
-          // Dual Header Row (Now vs Next)
-          Row(
-            children: [
-              // BOX 1: CURRENT TIME
-              Expanded(
-                child: GlassCard(
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          "Now",
-                          style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.w400),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      StreamBuilder(
-                        stream: Stream.periodic(const Duration(seconds: 1)),
-                        builder: (context, snapshot) {
-                          return FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              DateFormat('h:mm a').format(DateTime.now()),
-                              style: GoogleFonts.poppins(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+    return Container(
+      color: Colors.transparent, 
+      child: SingleChildScrollView(
+        // padding to account for the floating Nav Pill and Mini Player
+        // Compact padding: Reduced bottom from 200 to 120 (Just enough for player)
+        padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 12, 24, 120),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. HEADER: 12-DAY STREAK + SETTINGS
+            _buildHeader(secondaryTextColor, textColor),
+            
+            const SizedBox(height: 32), // Increased from 20 to push down
+            SizedBox(
+              height: 40,
+              child: Text(
+                "Assalamu Alaikum",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w300,
+                  color: textColor,
                 ),
               ),
-
-              const SizedBox(width: 12), // Spacing
-
-              // BOX 2: NEXT PRAYER
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PrayerTimesScreen()),
-                    );
-                  },
-                  child: GlassCard(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-                    child: _isLoading
-                        ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)))
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  "Next: ${_prayerTimes?.nextPrayer ?? '--'}",
-                                  style: const TextStyle(color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  _formatTo12Hour(_prayerTimes?.nextPrayerTime),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // AI Insight Widget
-          const AIInsightCarousel(),
-          
-          const SizedBox(height: 40),
-          
-          // Mission Button (Temporary access)
-          Center(
-            child: TextButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MissionScreen()),
-                );
-              },
-              icon: const Icon(LucideIcons.info, size: 16),
-              label: const Text("View Mission Briefing"),
-              style: TextButton.styleFrom(foregroundColor: Colors.white54),
             ),
-          ),
-          const SizedBox(height: 100), // Space for bottom nav
-        ],
+            
+            const SizedBox(height: 32), // Increased from 24
+
+            // 2. HERO: Next Prayer Card (Lighter Surface Elevation)
+            _buildPrayerHero(textColor, secondaryTextColor, accentColor),
+
+            const SizedBox(height: 48), // Increased from 32
+            
+            // 3. THE LIST HUB: Compact 2-Column Grid (No Scrolling)
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 16, // Increased spacing
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.3, // Taller items (was 1.35) to fill more space
+              padding: EdgeInsets.zero,
+              children: [
+                _hubGridItem("The Holy Quran", "RESUME AL-BAQARAH", LucideIcons.book_open, 1),
+                _hubGridItem("Hadith Collection", "DAILY WISDOM", LucideIcons.scroll_text, 2),
+                _hubGridItem("Prayer Times", "AZAN SCHEDULE", LucideIcons.clock, 6), // 🛑 SWAP: Pos 3
+                _hubGridItem("AI Tutor", "WISDOM & GUIDANCE", LucideIcons.sparkles, 4, isAccent: true),
+                _hubGridItem("Qibla Finder", "MECCA DIRECTION", LucideIcons.compass, 5),
+                _hubGridItem("Community", "EVENTS & MASJIDS", LucideIcons.users, 3), // 🛑 SWAP: Pos 6
+              ],
+            ),
+            
+            const SizedBox(height: 16), // Minimal bottom spacer
+          ],
+        ),
       ),
     );
   }
 
-  String _getArabicName(String englishName) {
-    switch (englishName.toLowerCase()) {
-      case 'fajr': return 'الفجر';
-      case 'dhuhr': return 'الظهر';
-      case 'asr': return 'العصر';
-      case 'maghrib': return 'المغرب';
-      case 'isha': return 'العشاء';
-      default: return '';
-    }
+  /// Header with Collapsible Nav and Streak
+  Widget _buildHeader(Color secondaryTextColor, Color textColor) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start, // 🛑 LAYOUT FIX: Align top for vertical expansion
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start, // 🛑 LAYOUT FIX: Align top
+          children: [
+            // Streak Section
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              ),
+              child: Icon(LucideIcons.activity, color: AppColors.primary, size: 18),
+            ),
+            const SizedBox(width: 12),
+            _buildStreakView(),
+          ],
+        ),
+        GestureDetector(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              builder: (context) => const SettingsBottomSheet(),
+            );
+          },
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.05),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Icon(LucideIcons.settings, color: textColor.withOpacity(0.4), size: 18),
+          ),
+        ),
+      ],
+    );
   }
 
-  String _formatTo12Hour(String? time) {
-    if (time == null) return "--:--";
-    try {
-      // Expecting "HH:mm"
-      final date = DateFormat.Hm().parse(time); 
-      return DateFormat('h:mm a').format(date);
-    } catch (e) {
-      return time;
-    }
+  /// Prayer Hero with Progress Bar
+  Widget _buildPrayerHero(Color textColor, Color secondaryTextColor, Color accentColor) {
+    return AspectRatio(
+      aspectRatio: 20 / 9, // Slightly taller than 21/9 for better presence
+      child: GlassCard(
+        borderRadius: 40,
+        padding: EdgeInsets.zero, // Controlled iç dolgu
+        showPattern: false, // Solid minimalist look per request
+        opacity: 0.2, // Stronger solid elevation 
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      child: Stack(
+        children: [
+          // 🛑 0. BACKGROUND IMAGE LAYER
+          Positioned.fill(
+             child: Opacity(
+               opacity: 0.6,
+               child: Image.asset(
+                 'assets/images/home_hero_bg.png',
+                 fit: BoxFit.cover,
+                 alignment: Alignment.center, // Focus on center for wide aspect
+               ),
+             ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), // Reduced vertical padding to FIX OVERFLOW
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center, // Center vertically
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "NEXT PRAYER",
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            letterSpacing: 4,
+                            fontWeight: FontWeight.w900,
+                            color: secondaryTextColor.withOpacity(0.3),
+                          ),
+                        ),
+                        _isLoading 
+                        ? Shimmer.fromColors(
+                            baseColor: Colors.white.withOpacity(0.05),
+                            highlightColor: Colors.white.withOpacity(0.1),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              width: 120, 
+                              height: 38, 
+                              decoration: BoxDecoration(
+                                color: Colors.black, // Color actually ignored by shimmer but needed for shape
+                                borderRadius: BorderRadius.circular(8)
+                              )
+                            ),
+                          )
+                        : Text(
+                          _nextPrayerName,
+                          style: GoogleFonts.outfit(
+                            fontSize: 32, // Restored size
+                            fontWeight: FontWeight.w300,
+                            color: textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Icon(LucideIcons.map_pin, size: 10, color: accentColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          "WASHINGTON, D.C.",
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            letterSpacing: 1,
+                            fontWeight: FontWeight.w700,
+                            color: secondaryTextColor.withOpacity(0.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4), // Reduced from 12
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    _isLoading
+                    ? Shimmer.fromColors(
+                        baseColor: Colors.white.withOpacity(0.05),
+                        highlightColor: Colors.white.withOpacity(0.1),
+                        child: Container(
+                          width: 180, 
+                          height: 60, 
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(12)
+                          )
+                        ),
+                      )
+                    : Text(
+                      _nextPrayerTime,
+                      style: GoogleFonts.outfit(
+                        fontSize: 46, // Restored size
+                        fontWeight: FontWeight.w200,
+                        color: textColor,
+                        letterSpacing: -2,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    if (!_isLoading)
+                    Text(
+                      _timeSuffix,
+                      style: GoogleFonts.inter(
+                        fontSize: 14, // Slightly larger for AM/PM
+                        letterSpacing: 3,
+                        fontWeight: FontWeight.w900,
+                        color: accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4), // Reduced from 8
+              ],
+            ),
+          ),
+          // Bottom Progress Bar
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: _isLoading 
+            ? const SizedBox.shrink()
+            : Container(
+              height: 4,
+              color: Colors.white.withOpacity(0.02),
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: 0.65, // Static for now, can be dynamic later if needed
+                child: Container(
+                  color: accentColor.withOpacity(0.3),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  /// Streak View with Ticks
+  Widget _buildStreakView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          "12 DAY STREAK",
+          style: GoogleFonts.inter(
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(7, (index) {
+            final bool isActive = index < 6;
+            return Container(
+              width: 5,
+              height: 14,
+              margin: const EdgeInsets.only(left: 3),
+              decoration: BoxDecoration(
+                color: isActive ? AppColors.primary : AppColors.primary.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  /// Compact Grid Item (Vertical Stack)
+  Widget _hubGridItem(String title, String subtitle, IconData icon, int targetIndex, {bool isAccent = false}) {
+    return GestureDetector(
+      onTap: () => widget.onNavigate(targetIndex),
+      child: GlassCard(
+        borderRadius: 24,
+        padding: const EdgeInsets.all(16),
+        sigma: 0,
+        showPattern: false,
+        opacity: 0.15,
+        border: Border.all(color: Colors.white.withOpacity(0.04)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icon Container
+            Container(
+              width: 42, // Restored size
+              height: 42, 
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: Icon(
+                icon, 
+                color: isAccent ? AppColors.accent : AppColors.textPrimaryDark.withOpacity(0.8), 
+                size: 20 // Restored size
+              ),
+            ),
+            const SizedBox(height: 12), // Restored spacing
+            // Title
+            Expanded( // Use expanded to prevent overflow
+             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14, // Reduced from 16
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimaryDark,
+                  ),
+                ),
+                const SizedBox(height: 2), // Reduced from 4
+                // Subtitle
+                Text(
+                  subtitle.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 7, // Reduced from 8
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textSecondaryDark.withOpacity(0.3),
+                  ),
+                ),
+              ],
+             ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

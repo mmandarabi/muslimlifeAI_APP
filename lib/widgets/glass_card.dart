@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
@@ -10,6 +10,8 @@ class GlassCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
   final double sigma;
+  final bool showPattern;
+  final Color? color;
 
   const GlassCard({
     super.key,
@@ -20,6 +22,8 @@ class GlassCard extends StatelessWidget {
     this.padding,
     this.onTap,
     this.sigma = 15.0,
+    this.showPattern = true,
+    this.color,
   });
 
   @override
@@ -28,7 +32,7 @@ class GlassCard extends StatelessWidget {
     
     // Light Mode: Dark tint, higher shadow
     // Dark Mode: White tint, subtle shadow
-    final tintColor = isDark ? Colors.white : Colors.black;
+    final tintColor = color ?? (isDark ? Colors.white : Colors.black);
     final shadowColor = isDark ? Colors.black.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05);
     final patternOpacity = isDark ? 0.05 : 0.03;
@@ -51,7 +55,7 @@ class GlassCard extends StatelessWidget {
           child: GestureDetector(
             onTap: onTap,
             child: Container(
-              padding: padding ?? const EdgeInsets.all(16),
+              // REMOVED internal padding from the decorated container to fix "Box within Box"
               decoration: BoxDecoration(
                 color: tintColor.withValues(alpha: opacity),
                 borderRadius: BorderRadius.circular(borderRadius),
@@ -60,20 +64,27 @@ class GlassCard extends StatelessWidget {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Subtle Islamic Pattern Texture
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: patternOpacity,
-                      child: Image.asset(
-                        'assets/images/islamic_pattern_bg.png',
-                        repeat: ImageRepeat.repeat,
-                        color: isDark ? null : Colors.black, // Darken pattern in light mode
-                        colorBlendMode: isDark ? null : BlendMode.srcIn,
+                  // Subtle Islamic Pattern Texture (Conditional)
+                  if (showPattern)
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(borderRadius),
+                        child: Opacity(
+                          opacity: patternOpacity,
+                          child: Image.asset(
+                            'assets/images/islamic_pattern_bg.png',
+                            repeat: ImageRepeat.repeat,
+                            color: isDark ? null : Colors.black,
+                            colorBlendMode: isDark ? null : BlendMode.srcIn,
+                          ),
+                        ),
                       ),
                     ),
+                  // Child Content (Now handles its own padding to keep pattern edge-to-edge)
+                  Padding(
+                    padding: padding ?? const EdgeInsets.all(16),
+                    child: child,
                   ),
-                  // Child Content
-                  child,
                 ],
               ),
             ),

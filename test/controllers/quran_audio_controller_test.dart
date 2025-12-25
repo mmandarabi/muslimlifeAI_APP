@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:muslim_life_ai_demo/controllers/quran_audio_controller.dart';
-import 'package:muslim_life_ai_demo/services/unified_audio_service.dart';
+import 'package:muslim_mind/controllers/quran_audio_controller.dart';
+import 'package:muslim_mind/services/unified_audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:muslim_life_ai_demo/models/quran_surah.dart';
-import 'package:muslim_life_ai_demo/models/quran_ayah.dart';
+import 'package:muslim_mind/models/quran_surah.dart';
+import 'package:muslim_mind/models/quran_ayah.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -1,14 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:muslim_life_ai_demo/theme/app_theme.dart';
-import 'package:muslim_life_ai_demo/widgets/glass_card.dart';
-import 'package:muslim_life_ai_demo/widgets/milestone_share_card.dart';
+import 'package:muslim_mind/theme/app_theme.dart';
+import 'package:muslim_mind/widgets/glass_card.dart';
+import 'package:muslim_mind/widgets/milestone_share_card.dart';
+import 'package:muslim_mind/services/prayer_log_service.dart';
 
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final logService = PrayerLogService();
+    final streak = logService.getStreak();
+    final todayCount = logService.getDailyCompletionCount(DateTime.now());
+    final progressList = logService.getLastSevenDaysProgress();
+    
+    final days = ["M", "T", "W", "T", "F", "S", "S"];
+    // Adjust days label to align with 'progressList' which is last 7 days ending today
+    final labels = List.generate(7, (i) {
+      final date = DateTime.now().subtract(Duration(days: 6 - i));
+      return DateFormat('E').format(date).substring(0, 1);
+    });
+
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -54,7 +68,7 @@ class AnalyticsScreen extends StatelessWidget {
                               );
                             },
                             child: Text(
-                              "12 Days",
+                              "$streak Days",
                               style: Theme.of(context).textTheme.displayMedium?.copyWith(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.bold,
@@ -63,14 +77,14 @@ class AnalyticsScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            "Today: 3 / 5 prayers completed",
+                            "Today: $todayCount / 5 prayers completed",
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: Colors.grey[400],
                                 ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "Longest streak: 47 days 🔥",
+                            streak > 0 ? "Keep it up! 🔥" : "Start your streak today! ✨",
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: AppColors.primary,
                                 ),
@@ -94,15 +108,14 @@ class AnalyticsScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _buildBar(context, "M", 0.8),
-                      _buildBar(context, "T", 0.9),
-                      _buildBar(context, "W", 1.0),
-                      _buildBar(context, "T", 1.0),
-                      _buildBar(context, "F", 1.0),
-                      _buildBar(context, "S", 1.0),
-                      _buildBar(context, "S", 1.0, isToday: true),
-                    ],
+                    children: List.generate(7, (index) {
+                      return _buildBar(
+                        context, 
+                        labels[index], 
+                        progressList[index], 
+                        isToday: index == 6
+                      );
+                    }),
                   ),
                 ],
               ),
@@ -111,6 +124,7 @@ class AnalyticsScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             // Insight Card
+            if (todayCount == 5)
             GlassCard(
               border: Border.all(
                 color: AppColors.primary.withValues(alpha: 0.3),
@@ -124,7 +138,7 @@ class AnalyticsScreen extends StatelessWidget {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Text(
-                        "Masha'Allah! You have prayed all 5 prayers on time this week!",
+                        "Masha'Allah! You have completed all prayers today!",
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Colors.white,
                               height: 1.4,
