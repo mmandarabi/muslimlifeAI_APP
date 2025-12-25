@@ -6,28 +6,37 @@ set -x
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-# 2. Navigate to Repo Root
+# 2. Navigate to project root
 cd "$(dirname "$0")/../.."
-echo "📍 Current working directory: $(pwd)"
 
-# 3. Install Flutter
+# 3. Setup Flutter
 export FLUTTER_HOME="$HOME/flutter"
-if [ -d "$FLUTTER_HOME" ]; then
-    rm -rf "$FLUTTER_HOME"
+export PATH="$PATH:$FLUTTER_HOME/bin"
+if [ ! -d "$FLUTTER_HOME" ]; then
+    git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
 fi
 
-echo "⬇️ Cloning Flutter SDK..."
-git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$FLUTTER_HOME"
-export PATH="$PATH:$FLUTTER_HOME/bin"
-
-# 4. Generate Build Artifacts ONLY
-echo "📦 Generating Flutter Artifacts..."
+# 4. Prepare Flutter
 flutter config --no-analytics
+flutter precache --ios
 flutter pub get
 
-# NOTE: We DO NOT run 'flutter build ios' here because it triggers 'pod install'
-# which takes too long and causes timeouts. 
-# 'flutter pub get' creates ios/Flutter/Generated.xcconfig which is enough 
-# for the native Xcode Cloud 'pod install' step to succeed later.
+# 5. REPAIR COCOAPODS (The fix for your specific error)
+# We must delete existing pod state and reinstall to generate .xcfilelist files
+echo "☕️ Rebuilding CocoaPods..."
+cd ios
+rm -rf Pods
+rm -rf Podfile.lock
+rm -rf .symlinks
 
-echo "✅ ci_post_clone.sh completed. handing off to Xcode Cloud..."
+# Install CocoaPods tool if missing (standard for Xcode Cloud)
+brew install cocoapods
+
+# Force a fresh install to create the missing Target Support Files
+pod install
+cd ..
+
+# 6. Final Config
+flutter build ios --config-only --release
+
+echo "✅ Script Finished."
