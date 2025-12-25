@@ -1,7 +1,7 @@
 name: muslim_mind
 description: A High-Fidelity Investor Demo for MuslimLife AI.
 publish_to: 'none'
-version: 1.0.8+100
+version: 1.0.8+101
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
