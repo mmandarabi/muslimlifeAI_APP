@@ -5,16 +5,16 @@ class QuranSurah {
   final String name; // Arabic Name
   final String transliteration; // English Name
   final String type;
-  final int totalVerses;
-  final List<QuranAyah> verses;
+  final int totalAyahs;
+  final List<QuranAyah> ayahs;
 
   QuranSurah({
     required this.id,
     required this.name,
     required this.transliteration,
     required this.type,
-    required this.totalVerses,
-    required this.verses,
+    required this.totalAyahs,
+    required this.ayahs,
   });
 
   factory QuranSurah.fromJson(Map<String, dynamic> json) {
@@ -23,8 +23,8 @@ class QuranSurah {
       name: json['name'] as String,
       transliteration: json['transliteration'] as String,
       type: json['type'] as String,
-      totalVerses: json['total_verses'] as int,
-      verses: (json['verses'] as List<dynamic>)
+      totalAyahs: json['total_verses'] as int,
+      ayahs: (json['verses'] as List<dynamic>)
           .map((v) => QuranAyah.fromJson(v as Map<String, dynamic>))
           .toList(),
     );

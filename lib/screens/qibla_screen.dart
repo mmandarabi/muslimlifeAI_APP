@@ -124,7 +124,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
       });
 
     } catch (e) {
-      debugPrint("QiblaScreen: Location error: $e. Using fallback (Belmont, VA).");
+      debugPrint("QiblaScreen: Location error: $e. Using generic fallback.");
       
       // FALLBACK: Belmont, VA
       final fallbackPosition = Position(
@@ -155,7 +155,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
         
         String msg = "GPS Signal Not Found. Using default location.";
         if (e.toString().contains('TimeoutException')) {
-          msg = "GPS Timeout: Using default location (Belmont, VA). Tap to retry.";
+          msg = "GPS Timeout: Using default location. Tap to retry.";
         }
 
         ScaffoldMessenger.of(context).showSnackBar(

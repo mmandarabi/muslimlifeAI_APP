@@ -39,14 +39,14 @@ class QuranLocalService {
     }
   }
 
-  /// Returns verses for a specific Surah ID (1-114).
+  /// Returns ayahs for a specific Surah ID (1-114).
   /// Requires loadSurahIndex() to have been called first.
   Future<List<QuranAyah>> loadAyahBySurah(int surahNumber) async {
     final surah = await getSurahDetails(surahNumber);
-    return surah.verses;
+    return surah.ayahs;
   }
 
-  /// Returns the full Surah object (Metadata + Verses)
+  /// Returns the full Surah object (Metadata + Ayahs)
   Future<QuranSurah> getSurahDetails(int surahNumber) async {
      // Ensure data is loaded
     if (_cachedSurahs == null) {

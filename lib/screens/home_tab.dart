@@ -8,6 +8,7 @@ import 'package:muslim_mind/services/prayer_service.dart';
 import 'package:muslim_mind/theme/app_theme.dart';
 import 'package:muslim_mind/widgets/glass_card.dart';
 import 'package:muslim_mind/widgets/settings_bottom_sheet.dart';
+import 'package:muslim_mind/screens/chat_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class HomeTab extends StatefulWidget {
@@ -132,16 +133,47 @@ class _HomeTabState extends State<HomeTab> {
             _buildHeader(secondaryTextColor, textColor),
             
             const SizedBox(height: 32), // Increased from 20 to push down
-            SizedBox(
-              height: 40,
-              child: Text(
-                "Assalamu Alaikum",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.outfit(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w300,
-                  color: textColor,
+            GestureDetector(
+              onTap: () {
+                 // Open Immersive Chat
+                 Navigator.push(
+                   context, 
+                   MaterialPageRoute(
+                     builder: (context) => ChatScreen(),
+                     fullscreenDialog: true, // Animates up like a sheet/modal
+                   ),
+                 );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: textColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: textColor.withOpacity(0.1)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(LucideIcons.sparkles, size: 18, color: AppColors.primary),
+                    const SizedBox(width: 12),
+                    Text(
+                      "Assalamu Alaikum, ask me...",
+                      style: GoogleFonts.outfit(
+                         fontSize: 16,
+                         color: textColor.withOpacity(0.6),
+                         fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                         color: AppColors.primary.withOpacity(0.1),
+                         shape: BoxShape.circle,
+                      ),
+                      child: const Icon(LucideIcons.arrow_right, size: 14, color: AppColors.primary),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -166,7 +198,6 @@ class _HomeTabState extends State<HomeTab> {
                 _hubGridItem("The Holy Quran", "RESUME AL-BAQARAH", LucideIcons.book_open, 1),
                 _hubGridItem("Hadith Collection", "DAILY WISDOM", LucideIcons.scroll_text, 2),
                 _hubGridItem("Prayer Times", "AZAN SCHEDULE", LucideIcons.clock, 6), // 🛑 SWAP: Pos 3
-                _hubGridItem("AI Tutor", "WISDOM & GUIDANCE", LucideIcons.sparkles, 4, isAccent: true),
                 _hubGridItem("Qibla Finder", "MECCA DIRECTION", LucideIcons.compass, 5),
                 _hubGridItem("Community", "EVENTS & MASJIDS", LucideIcons.users, 3), // 🛑 SWAP: Pos 6
               ],

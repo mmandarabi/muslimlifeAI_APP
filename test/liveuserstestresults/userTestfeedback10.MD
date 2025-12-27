@@ -1,0 +1,2 @@
+![alt text](image.png)
+Ok when player is x closed i now see the message , header say ayah , play say verse no verse use on any message we only call ayah make sure there is no ayah verse reference in labes or message, book mark saved but what does it mean ? Where we store it and how user see its book marked ayas ? The share label is mock does notthong eather we remove it or allow to do its tas

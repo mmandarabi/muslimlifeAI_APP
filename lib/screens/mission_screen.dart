@@ -45,7 +45,7 @@ class MissionScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Why We Built MuslimLife",
+                    "Why We Built MuslimMind",
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -136,11 +136,11 @@ class MissionScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   
-                  _buildDataRoomItem(context, "VC Teaser Deck", "PDF • 2.4 MB", "docs/MuslimLife_AI_Investment_Overview.docx"),
+                  _buildDataRoomItem(context, "VC Teaser Deck", "PDF • 2.4 MB", "docs/MuslimMind_AI_Investment_Overview.docx"),
                   const SizedBox(height: 8),
-                  _buildDataRoomItem(context, "Product Overview", "PDF • 1.8 MB", "docs/MuslimLife_AI_product_overview.docx"),
+                  _buildDataRoomItem(context, "Product Overview", "PDF • 1.8 MB", "docs/MuslimMind_AI_product_overview.docx"),
                   const SizedBox(height: 8),
-                  _buildDataRoomItem(context, "Full Business Case", "PDF • 3.1 MB", "docs/MuslimLife_AI_BusinessCase.docx"),
+                  _buildDataRoomItem(context, "Full Business Case", "PDF • 3.1 MB", "docs/MuslimMind_AI_BusinessCase.docx"),
                 ],
               ),
             ),

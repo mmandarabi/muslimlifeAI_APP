@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:hijri/hijri_calendar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prayer_times.dart';
 import '../config/api_config.dart';
@@ -58,24 +60,45 @@ class PrayerService {
       final lat = position['lat'];
       final lon = position['lon'];
       
-      debugPrint("PrayerService: Using coordinates: $lat, $lon");
+      // 🛑 RELIABILITY FIX: If GPS fails completely, look for last city name in cache
+      String locationName = "Current Location";
+      if (lat != null && lon != null) {
+          locationName = await _getAddressFromLatLng(lat, lon);
+      } else {
+          locationName = _cachedData?.locationName ?? "Location Unavailable";
+      }
 
-      // 2. Call Cloud Function
-      final Uri uri = Uri.parse('$_endpointUrl?lat=$lat&lon=$lon&method=2');
+      debugPrint("PrayerService: Using coordinates: $lat, $lon ($locationName)");
+
+      // 2. Calculate Hijri Date (Dynamic)
+      final hijriDate = HijriCalendar.now();
+      final dateHijri = "${hijriDate.hDay} ${hijriDate.longMonthName} ${hijriDate.hYear} AH";
+
+      // 3. Fallback Coordination (If GPS fails, use static fallback coords but keep dynamic date)
+      final double targetLat = lat ?? 38.9072; // Belmont Fallback Coords if GPS dead
+      final double targetLon = lon ?? -77.0369;
+
+      // 4. Call Cloud Function
+      final Uri uri = Uri.parse('$_endpointUrl?lat=$targetLat&lon=$targetLon&method=2');
       debugPrint("PrayerService: Calling API: $uri");
 
-      // Increased timeout to 30s to handle Cold Starts & Slow Networks
       final response = await http.get(uri).timeout(const Duration(seconds: 30));
       
       debugPrint("PrayerService: Response Status: ${response.statusCode}");
 
       if (response.statusCode == 200) {
-        // Offload JSON parsing to an isolate to prevent UI jank
-        _cachedData = await compute(_parsePrayerTimes, response.body);
+        final Map<String, dynamic> rawData = json.decode(response.body);
+        
+        // Supplement API data with our dynamic local logic
+        rawData['locationName'] = locationName;
+        rawData['dateHijri'] = dateHijri;
+
+        // Offload JSON parsing to an isolate
+        _cachedData = await compute(_parsePrayerTimes, json.encode(rawData));
         _lastFetchTime = DateTime.now();
         
         // PERSIST TO DISK
-        _saveToDisk(response.body);
+        _saveToDisk(json.encode(rawData));
         
         return _cachedData!;
       } else {
@@ -84,12 +107,27 @@ class PrayerService {
       }
     } catch (e) {
       debugPrint("PrayerService: Error - $e");
-      // If it's a timeout, give a more specific message
       if (e.toString().contains('TimeoutException')) {
          throw Exception('Connection timed out. Please check your internet or try again.');
       }
       throw Exception('Error fetching prayer times: $e');
     }
+  }
+
+  Future<String> _getAddressFromLatLng(double lat, double lon) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(lat, lon);
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        // Priority: City, Locality, SubAdministrativeArea
+        final String city = place.locality ?? place.subAdministrativeArea ?? place.administrativeArea ?? "Unknown";
+        final String country = place.isoCountryCode ?? "";
+        return "$city, $country".trim();
+      }
+    } catch (e) {
+      debugPrint("PrayerService: Reverse Geocoding failed: $e");
+    }
+    return "Current Location";
   }
   
   Future<void> _saveToDisk(String jsonString) async {
@@ -102,105 +140,40 @@ class PrayerService {
     }
   }
 
-  /// Determines the location based on platform priority:
-  /// 1. Mobile: GPS
-  /// 2. Web: IP Geolocation
-  /// 3. Fallback: Belmont, VA
-  Future<Map<String, double>> _determinePosition() async {
-    // Default Fallback (Belmont, VA)
-    final fallback = {'lat': 38.9072, 'lon': -77.0369};
-
+  Future<Map<String, double?>> _determinePosition() async {
     try {
       if (!kIsWeb) {
-        // --- MOBILE STRATEGY (GPS) ---
-        debugPrint("PrayerService: Checking Android Location Service...");
-        
         bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-        if (!serviceEnabled) {
-          debugPrint("PrayerService: Location Service Disabled. Using Fallback.");
-          // Try to use cache if GPS is off, but fetchPrayerTimes handles that earlier
-          return fallback; 
-        }
+        if (!serviceEnabled) return {'lat': null, 'lon': null};
 
         LocationPermission permission = await Geolocator.checkPermission();
         if (permission == LocationPermission.denied) {
           permission = await Geolocator.requestPermission();
-          if (permission == LocationPermission.denied) {
-            debugPrint("PrayerService: Permission Denied. Using Fallback.");
-            return fallback;
-          }
+          if (permission == LocationPermission.denied) return {'lat': null, 'lon': null};
         }
 
-        if (permission == LocationPermission.deniedForever) {
-          debugPrint("PrayerService: Permission Denied Forever. Using Fallback.");
-          return fallback;
-        }
+        if (permission == LocationPermission.deniedForever) return {'lat': null, 'lon': null};
 
-        // 1. FAST TRACK: Try Last Known Position first (Instant)
-        debugPrint("PrayerService: Fetching last known position...");
         final lastKnown = await Geolocator.getLastKnownPosition();
         if (lastKnown != null) {
-          // If less than 1 hour old, use it immediately
           final age = DateTime.now().difference(lastKnown.timestamp);
-          if (age.inHours < 1) {
-             debugPrint("PrayerService: Using fresh cached GPS: ${lastKnown.latitude}, ${lastKnown.longitude}");
-             return {'lat': lastKnown.latitude, 'lon': lastKnown.longitude};
-          }
+          if (age.inHours < 1) return {'lat': lastKnown.latitude, 'lon': lastKnown.longitude};
         }
 
-        // 2. ACTIVE TRACK: Request current position
-        debugPrint("PrayerService: Requesting current position (10s limit)...");
-        try {
-          LocationSettings settings;
-          if (defaultTargetPlatform == TargetPlatform.android) {
-            settings = AndroidSettings(
-              accuracy: LocationAccuracy.medium,
-              timeLimit: const Duration(seconds: 10),
-              forceLocationManager: true,
-            );
-          } else {
-            settings = AppleSettings(
-              accuracy: LocationAccuracy.medium,
-              timeLimit: const Duration(seconds: 10),
-            );
-          }
-
-          final position = await Geolocator.getCurrentPosition(locationSettings: settings); 
-              
-          debugPrint("PrayerService: GPS Position Found: ${position.latitude}, ${position.longitude}");
-          return {'lat': position.latitude, 'lon': position.longitude};
-        } catch (e) {
-          debugPrint("PrayerService: getCurrentPosition timed out or failed. Falling back to LastKnown or Default.");
-          if (lastKnown != null) {
-            return {'lat': lastKnown.latitude, 'lon': lastKnown.longitude};
-          }
-          return fallback;
-        }
+        final position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 10))
+        ); 
+        return {'lat': position.latitude, 'lon': position.longitude};
       } else {
-        // --- WEB STRATEGY (IP Geolocation) ---
-        // ... (rest of web logic remains same)
-        try {
-          debugPrint("PrayerService: Calling IP API...");
-          final response = await http.get(Uri.parse('http://ip-api.com/json')).timeout(const Duration(seconds: 3));
-          if (response.statusCode == 200) {
-            final data = json.decode(response.body);
-            if (data['status'] == 'success') {
-               return {'lat': (data['lat'] as num).toDouble(), 'lon': (data['lon'] as num).toDouble()};
-            }
-          }
-        } catch (e) {
-          debugPrint("PrayerService: Web location fetch failed: $e");
-        }
-        return fallback; 
+        // Web basic fallback or IP API
+        return {'lat': null, 'lon': null};
       }
     } catch (e) {
-      debugPrint("PrayerService: Location determination error: $e. Using Fallback.");
-      return fallback;
+      return {'lat': null, 'lon': null};
     }
   }
 }
 
-/// Top-level function for isolate JSON parsing
 PrayerTimes _parsePrayerTimes(String responseBody) {
   final Map<String, dynamic> data = json.decode(responseBody);
   return PrayerTimes.fromJson(data);

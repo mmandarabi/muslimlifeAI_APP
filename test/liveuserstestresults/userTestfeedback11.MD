@@ -1,0 +1,2 @@
+![alt text](image.png)
+I long press a particular aya , i get a pop up its behind the audio player even dont know what is it saying cant read and its for what , but good reciter played from the suran i long pressed and highlighted it currently

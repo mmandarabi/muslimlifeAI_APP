@@ -52,11 +52,11 @@ class SurahHeaderWidget extends StatelessWidget {
               children: [
                 Text(
                   surahNameArabic,
-                  style: GoogleFonts.amiri(
-                    fontSize: 24, // Reduced from 32
-                    fontWeight: FontWeight.bold,
+                  style: TextStyle(
+                    fontFamily: 'KFGQPCUthmanic',
+                    fontSize: 28,
                     color: gold,
-                    height: 1.0,
+                    height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 2),

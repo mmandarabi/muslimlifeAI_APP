@@ -55,7 +55,7 @@ void main() {
     test('getSurahDetails returns correct surah', () async {
       final surah = await service.getSurahDetails(1);
       expect(surah.transliteration, 'Al-Fatihah');
-      expect(surah.verses.length, 2);
+      expect(surah.ayahs.length, 2);
     });
 
     test('getSurahDetails throws on invalid ID', () async {

@@ -13,6 +13,7 @@ import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:quran/quran.dart' as quran;
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 
 class SurahContext {
   final int surahId;
@@ -119,6 +120,9 @@ class UnifiedAudioService with WidgetsBindingObserver {
   // UI Layout Notifier: Allows screens to adjust the global player's bottom offset
   // Default 12.0 fits full-screen/hub layouts (Reduced from 94.0 as per user feedback)
   final ValueNotifier<double> playerBottomPadding = ValueNotifier(12.0);
+  
+  // 🛑 Z-INDEX FIX: Allow temporary hiding of the global player for overlays/menus
+  final ValueNotifier<bool> isPlayerVisible = ValueNotifier(true);
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {}
@@ -131,16 +135,22 @@ class UnifiedAudioService with WidgetsBindingObserver {
     _currentVoice = prefs.getString(_prefVoiceKey) ?? 'makkah';
     _currentQuranReciter = prefs.getString(_prefQuranReciterKey) ?? 'sudais';
     _isVoiceExplicitlySet = prefs.getBool(_prefVoiceSetKey) ?? false;
-    // 🛑 BUG FIX: Disable reminders by default as per user request
-    _reminderEnabled = prefs.getBool(_prefReminderEnabled) ?? false; 
-    _notificationEnabled = prefs.getBool(_prefNotificationEnabled) ?? false;
     _reminderEnabled = prefs.getBool(_prefReminderEnabled) ?? false; 
     _notificationEnabled = prefs.getBool(_prefNotificationEnabled) ?? false;
     _soundEnabled = prefs.getBool(_prefSoundEnabled) ?? false;
-    _shortAdhanEnabled = prefs.getBool(_prefShortAdhanEnabled) ?? false; // 🛑 NEW
+    _shortAdhanEnabled = prefs.getBool(_prefShortAdhanEnabled) ?? false; 
     
     await _initNotificationChannel();
     tz_data.initializeTimeZones();
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await AndroidAlarmManager.initialize();
+        debugPrint("UnifiedAudioService: AndroidAlarmManager initialized.");
+      } catch (e) {
+        debugPrint("UnifiedAudioService: AndroidAlarmManager init error: $e");
+      }
+    }
   }
 
   Future<void> _ensurePlayerInitialized() async {
@@ -231,28 +241,32 @@ class UnifiedAudioService with WidgetsBindingObserver {
   }
 
   Future<void> _initNotificationChannel() async {
-    const androidSettings = fln.AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = fln.DarwinInitializationSettings(
-      requestAlertPermission: true, 
-      requestSoundPermission: true,
-      requestBadgePermission: true,
-    );
-    const settings = fln.InitializationSettings(android: androidSettings, iOS: iosSettings);
-    
-    await _notificationsPlugin.initialize(settings);
+    try {
+      const androidSettings = fln.AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = fln.DarwinInitializationSettings(
+        requestAlertPermission: true, 
+        requestSoundPermission: true,
+        requestBadgePermission: true,
+      );
+      const settings = fln.InitializationSettings(android: androidSettings, iOS: iosSettings);
+      
+      await _notificationsPlugin.initialize(settings);
 
-    const androidAdhanChannel = fln.AndroidNotificationChannel(
-        'adhan_channel_v1',
-        'Adhan Notifications',
-        description: 'Critical notifications for prayer times',
-        importance: fln.Importance.max,
-        playSound: true,
-        sound: fln.RawResourceAndroidNotificationSound('adhan_makkah'),
-    );
+      const androidAdhanChannel = fln.AndroidNotificationChannel(
+          'adhan_channel_v1',
+          'Adhan Notifications',
+          description: 'Critical notifications for prayer times',
+          importance: fln.Importance.max,
+          playSound: true,
+          sound: fln.RawResourceAndroidNotificationSound('adhan_makkah'),
+      );
 
-    await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<fln.AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(androidAdhanChannel);
+      await _notificationsPlugin
+          .resolvePlatformSpecificImplementation<fln.AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(androidAdhanChannel);
+    } catch (e) {
+      debugPrint("UnifiedAudioService: Notification Channel Init Error: $e");
+    }
   }
 
   Future<void> updateAdhanSettings({bool? reminder, bool? notification, bool? sound, bool? shortAdhan}) async { // 🛑 Updated Signature
@@ -693,14 +707,16 @@ class UnifiedAudioService with WidgetsBindingObserver {
       */
 
       if (_notificationEnabled || _soundEnabled) {
-        // 🛑 iOS FIX: Use the actual asset filename 'Makkah.mp3'.
-        // The previous 'adhan_makkah.mp3' was an Android raw resource mapping.
+        // 🛑 iOS/Android FIX: Use actual asset filename or raw resource.
         final String soundFile = 'Makkah.mp3'; 
+        final String bodyText = _soundEnabled 
+            ? "Adhan is playing. Come to success." 
+            : "Time for $prayerName Prayer. Hayya 'ala-s-Salah.";
 
         await _notificationsPlugin.zonedSchedule(
-          id++,
-          '$prayerName Prayer Time',
-          _soundEnabled ? 'Al-Adhan: High quality recitation' : 'Time for $prayerName prayer.',
+          id,
+          'Time for $prayerName Prayer',
+          bodyText,
           tz.TZDateTime.from(scheduledTime, tz.local),
           fln.NotificationDetails(
             android: fln.AndroidNotificationDetails(
@@ -720,8 +736,24 @@ class UnifiedAudioService with WidgetsBindingObserver {
             ),
           ),
           androidScheduleMode: fln.AndroidScheduleMode.exactAllowWhileIdle,
-          // uiLocalNotificationDateInterpretation: fln.UILocalNotificationDateInterpretation.absoluteTime,
         );
+
+        // 🛑 NATIVE ALARM HARDENING (Android Only)
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android && _soundEnabled) {
+          final alarmId = id + 1000; // Offset to avoid conflict with FLN IDs if any
+          await AndroidAlarmManager.oneShotAt(
+            scheduledTime,
+            alarmId,
+            adhanAlarmCallback,
+            exact: true,
+            wakeup: true,
+            alarmClock: true,
+            allowWhileIdle: true,
+          );
+          debugPrint("UnifiedAudioService: Scheduled Native Alarm for $prayerName at $scheduledTime (AlarmID: $alarmId)");
+        }
+        
+        id++;
       }
     }
   }
@@ -845,21 +877,21 @@ class UnifiedAudioService with WidgetsBindingObserver {
     }
 
     // 2. Count Check (Prevents Off-by-one errors)
-    final expectedVerses = quran.getVerseCount(surahId);
-    final fetchedVerses = segments.last.ayahNumber;
+    final expectedAyahs = quran.getVerseCount(surahId);
+    final fetchedAyahs = segments.last.ayahNumber;
     
     // Allow deviation of 1 (sometimes Bismillah is counted or not)
-    if ((fetchedVerses - expectedVerses).abs() > 1) {
-       debugPrint("UnifiedAudioService: CRITICAL DATACORRUPTION - Surah $surahId expected $expectedVerses verses but got $fetchedVerses. Rejecting data.");
+    if ((fetchedAyahs - expectedAyahs).abs() > 1) {
+       debugPrint("UnifiedAudioService: CRITICAL DATACORRUPTION - Surah $surahId expected $expectedAyahs ayahs but got $fetchedAyahs. Rejecting data.");
        return false;
     }
     return true;
   }
   Future<Duration?> resolveAyahSeekPosition(int surahId, int ayahNumber) async {
     // 🛑 BOUNDS CHECK: Prevent seeking to non-existent ayahs (e.g. Surah 110 Ayah 4)
-    final int totalVerses = quran.getVerseCount(surahId);
-    if (ayahNumber > totalVerses || ayahNumber < 1) {
-       debugPrint("UnifiedAudioService: Seek rejected. Ayah $ayahNumber out of bounds for Surah $surahId ($totalVerses verses).");
+    final int totalAyahs = quran.getVerseCount(surahId);
+    if (ayahNumber > totalAyahs || ayahNumber < 1) {
+       debugPrint("UnifiedAudioService: Seek rejected. Ayah $ayahNumber out of bounds for Surah $surahId ($totalAyahs ayahs).");
        return null; 
     }
 
@@ -906,5 +938,47 @@ class AyahSegment {
       timestampFrom: map['f'] ?? 0,
       timestampTo: map['t'] ?? 0,
     );
+  }
+}
+
+// 🛑 NATIVE ALARM CALLBACK: Runs in a dedicated background isolate.
+// Must be a top-level function with @pragma('vm:entry-point').
+@pragma('vm:entry-point')
+void adhanAlarmCallback(int id) async {
+  debugPrint("AdhanAlarmCallback: Background isolate triggered for ID $id");
+  
+  try {
+    // 1. Load preferences
+    final prefs = await SharedPreferences.getInstance();
+    final String voice = prefs.getString('selected_voice_key') ?? 'makkah';
+    final bool isShort = prefs.getBool('adhan_short_mode_enabled') ?? false;
+    
+    // 2. Play Adhan
+    // Note: We use a local AudioPlayer instance because we are in a separate isolate.
+    final player = AudioPlayer();
+    final filename = voice.substring(0, 1).toUpperCase() + voice.substring(1);
+    final assetPath = 'assets/audio/Adhan/$filename.mp3';
+    
+    debugPrint("AdhanAlarmCallback: Playing $assetPath (Short Mode: $isShort)");
+    
+    await player.setAsset(assetPath);
+    await player.setVolume(1.0);
+    await player.play();
+    
+    // 3. Handle Auto-Stop for Short Adhan
+    if (isShort) {
+       await Future.delayed(const Duration(seconds: 10));
+       await player.stop();
+       debugPrint("AdhanAlarmCallback: Short Adhan stopped after 10s.");
+    } else {
+       // Wait for completion for full Adhan
+       await player.processingStateStream.firstWhere((s) => s == ProcessingState.completed);
+    }
+    
+    await player.dispose();
+    debugPrint("AdhanAlarmCallback: Cleanup complete.");
+    
+  } catch (e) {
+    debugPrint("AdhanAlarmCallback: SEVERE ERROR in background isolate: $e");
   }
 }

@@ -15,6 +15,7 @@ import 'package:muslim_mind/services/unified_audio_service.dart';
 import 'package:muslim_mind/services/quran_page_service.dart';
 import 'package:muslim_mind/services/theme_service.dart';
 import 'package:muslim_mind/services/quran_favorite_service.dart';
+import 'package:muslim_mind/widgets/quran/juz_scrub_rail.dart';
 import 'package:quran/quran.dart' as quran;
 
 class QuranHomeScreen extends StatefulWidget {
@@ -651,75 +652,26 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
 
   Widget _buildJuzRail(Color accentColor) {
     return GestureDetector(
-      onVerticalDragUpdate: (details) {
-        // Calculate which index is being touched based on Y position
-        // Assuming each item is roughly ~22-24px height (10 fontSize + 8 vertical padding + 4 spacing)
-        // Better: Use layout builder or fixed height logic.
-        // Let's assume total height / 30.
-        final RenderBox box = context.findRenderObject() as RenderBox;
-        final localOffset = box.globalToLocal(details.globalPosition);
-        
-        // We know the rail starts at a certain Y relative to the screen, 
-        // but 'details.localPosition' in this gesture detector gives local coordinates.
-        // BUT: The gesture is on the Column/Container.
-        
-        // Approximate height per item: 
-        // Font 10 + Padding 8 (4*2) = 18px per item? No, let's verify text height.
-        // Let's use a fixed height container for each item to be safe.
-        
-        // Actually, we can just use the local Y position divided by the height of one item.
-        const double itemHeight = 22.0; // 10px text + 8px padding + 4px margin roughly
-        int index = (details.localPosition.dy / itemHeight).floor() + 1;
-        
-        if (index < 1) index = 1;
-        if (index > 30) index = 30;
-        
-        if (_activeJuzScrollIndex != index) {
-          setState(() => _activeJuzScrollIndex = index);
-          _scrollToJuz(index);
-        }
-      },
+      // 🛑 OPTIMIZATION: Removed local drag logic in favor of JuzScrubRail
+      onVerticalDragUpdate: null,
       onVerticalDragEnd: (_) {
          Future.delayed(const Duration(milliseconds: 500), () {
            if (mounted) setState(() => _activeJuzScrollIndex = -1);
          });
       },
-      child: Container(
-        width: 32,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.03),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Column(
-          children: List.generate(30, (index) {
-            final juz = index + 1;
-            final isActive = _activeJuzScrollIndex == juz;
-            return GestureDetector(
-              onTapDown: (_) {
-                setState(() => _activeJuzScrollIndex = juz);
-                _scrollToJuz(juz);
-              },
-              onTapUp: (_) {
-                 Future.delayed(const Duration(milliseconds: 500), () {
-                   if (mounted) setState(() => _activeJuzScrollIndex = -1);
-                 });
-              },
-              child: Container(
-                height: 22, // Fixed height for reliable drag math
-                alignment: Alignment.center,
-                child: Text(
-                  juz.toString(),
-                  style: GoogleFonts.firaCode(
-                    fontSize: isActive ? 14 : 10, // Scale up on active
-                    fontWeight: FontWeight.bold,
-                    color: isActive ? AppColors.accent : AppColors.primary, // Highlight color
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
+      child: JuzScrubRail(
+        onJuzSelected: (juz) {
+          setState(() => _activeJuzScrollIndex = juz);
+          _scrollToJuz(juz);
+
+          // Auto-clear active index after delay (UI polish)
+          Future.delayed(const Duration(seconds: 1), () {
+            if (mounted && _activeJuzScrollIndex == juz) {
+               setState(() => _activeJuzScrollIndex = -1);
+            }
+          });
+        },
+        activeJuz: _activeJuzScrollIndex,
       ),
     );
   }
@@ -752,7 +704,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            // 2. Name & Verses
+            // 2. Name & Ayahs
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -767,7 +719,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "${surah.totalVerses} AYAHS",
+                    "${surah.totalAyahs} AYAHS",
                     style: GoogleFonts.inter(
                       fontSize: 9,
                       fontWeight: FontWeight.w900,

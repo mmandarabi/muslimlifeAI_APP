@@ -356,11 +356,11 @@ class _QuranScreenState extends State<QuranScreen> {
                       ),
                     ),
 
-                    // --- 2. Scrollable List (Title Box + Verses) ---
+                    // --- 2. Scrollable List (Title Box + Ayahs) ---
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.only(left: 20, right: 20, bottom: 100), // Extra bottom padding for FAB
-                        itemCount: surah.verses.length + 1, // Title Box + Verses
+                        itemCount: surah.ayahs.length + 1, // Title Box + Ayahs
                         itemBuilder: (context, index) {
                           // Item 0: Decorative Title Box
                           if (index == 0) {
@@ -390,9 +390,9 @@ class _QuranScreenState extends State<QuranScreen> {
                             );
                           }
                           
-                          // Verses (Index 1 to N)
+                          // Ayahs (Index 1 to N)
                           final ayahIndex = index - 1;
-                          final ayah = surah.verses[ayahIndex];
+                          final ayah = surah.ayahs[ayahIndex];
                           
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 24.0),

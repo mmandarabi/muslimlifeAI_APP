@@ -37,8 +37,8 @@ void main() {
          name: 'Al-Fatiha', 
          transliteration: 'The Opening',
          type: 'Meccan',
-         totalVerses: 7,
-         verses: [QuranAyah(id: 1, text: '...')]
+         totalAyahs: 7,
+         ayahs: [QuranAyah(id: 1, text: '...')]
        );
        
        // handleSmartFollow should do nothing if isBrowsing is true

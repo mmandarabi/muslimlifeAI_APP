@@ -1,0 +1,44 @@
+Project Walkthrough: MuslimLife AI Demo
+Current Status: High-Fidelity Investor Demo Implementation Platform: Flutter (Cross-platform)
+
+1. Project Overview
+This project is a high-fidelity demonstration application for "MuslimLife AI". It is built using Flutter and aims to showcase a premium user interface with modern design elements (glassmorphism, animations) and core feature sets relevant to the Muslim lifestyle.
+
+2. Technical Stack
+Framework: Flutter (Dart)
+Design System: Dark Theme (Default)
+UI Components:
+glass_kit (Glassmorphism effects)
+flutter_lucide (Modern iconography)
+google_fonts (Typography)
+Animation: flutter_animate
+Utilities: intl (Internationalization/Formatting), url_launcher
+3. Implemented Features & Screens
+The following modules have been implemented in lib/screens/:
+
+Core Navigation & Onboarding
+Landing Page (landing_page.dart): Web-only entry point with marketing info.
+Intro Screen (intro_screen.dart): The entry point of the application (mobile default), likely featuring an animated onboarding experience.
+Login Screen (login_screen.dart): User authentication interface.
+Home Tab (home_tab.dart): The primary navigation controller (likely BottomNavigationBar or similar).
+Dashboard (dashboard_screen.dart): Central hub for user activity and quick access.
+Religious Features (Deen)
+Quran Suite:
+quran_home_screen.dart: Main entry for Quran features.
+quran_read_mode.dart: Immersive reading experience.
+quran_screen.dart: Surah/Ayah list or view.
+Hadith (hadith_screen.dart): Interface for browsing Hadith collections.
+Prayer Times (prayer_times_screen.dart): Display of daily prayer schedules (likely with location context).
+Qibla Direction (qibla_screen.dart): Compass interface to find the Qibla.
+Community & Lifestyle
+Chat (chat_screen.dart): AI-powered chat interface (MuslimLife Assistant).
+Community (community_screen.dart): Social or community feed features.
+Analytics (analytics_screen.dart): User stats/engagement metrics.
+Mission (mission_screen.dart): "About Us" or Mission statement page.
+4. Development Status
+Entry Point: lib/main.dart initializes the app with AppTheme.darkTheme and starts at IntroScreen.
+Theme: Custom AppTheme structure located in lib/theme/.
+5. Next Steps
+Verify routing connections between screens.
+Connect mock data or real backend services (currently seems to be UI-focused).
+Refine animations and transitions for the "Investor Demo" polish.

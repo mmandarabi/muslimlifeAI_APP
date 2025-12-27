@@ -82,6 +82,9 @@ class _QuranReadModeState extends State<QuranReadMode> {
         UnifiedAudioService().playerBottomPadding.value = 12.0;
       }
     });
+
+    // 🛑 OPTIMIZATION: Precache the heavy branding assets for zero-latency loading
+    precacheImage(const AssetImage('assets/images/sura_alfateha_brand.png'), context);
   }
 
   @override
@@ -222,44 +225,52 @@ class _QuranReadModeState extends State<QuranReadMode> {
                     setState(() => _showControls = !_showControls); 
                   },
                   child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: 604,
-                    physics: const BouncingScrollPhysics(),
-                    onPageChanged: _onPageChanged,
-                    itemBuilder: (context, index) {
-                      final pageNum = index + 1;
-                      
-                      // 🛑 UI FIX: Slightly reduced font size for Al-Fatiha (Page 1) to prevent border overlap
-                      // due to the heavy padding required for the decorative frame.
-                      final fontScale = (pageNum == 1) ? 1.15 : 1.5;
-                      
-                      final content = _buildMushafContent(pageNum, textColor, surah, gold, emerald, fontScale);
+                      controller: _pageController,
+                      itemCount: 604,
+                      physics: const BouncingScrollPhysics(),
+                      onPageChanged: _onPageChanged,
+                      itemBuilder: (context, index) {
+                        final pageNum = index + 1;
+                        
+                        // 🛑 NEW: Unified "Perfect Fit" Architecture
+                        // We use a LayoutBuilder to capture exact screen constraints for a zero-gap fit.
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            final double availW = constraints.maxWidth;
+                            final double availH = constraints.maxHeight;
+                            
+                            // Establish a reference width (400) and calculate a matching reference height.
+                            // This ensures the canvas we draw on has the SAME aspect ratio as the available space.
+                            const double refW = 400.0;
+                            final double refH = (availH / availW) * refW;
+                            
+                            // Balanced font scale for the reference width.
+                            // Page 1-2 (intro) needs slightly smaller text to fit frames.
+                            final fontScale = (pageNum <= 2) ? 1.15 : 1.6;
+                            
+                            final content = _buildMushafContent(pageNum, textColor, surah, gold, emerald, refH, fontScale);
 
-                      // 🛑 UI FIX: Al-Fatiha and first page of Al-Baqara remain scrollable as per traditional layout
-                      if (pageNum <= 2) {
-                        return SingleChildScrollView(
-                          padding: const EdgeInsets.only(bottom: 200),
-                          child: content,
+                            // 🛑 FEATURE: Full-Page Pinch-to-Zoom (Edge-to-Edge)
+                            return InteractiveViewer(
+                              minScale: 1.0,
+                              maxScale: 5.0,
+                              child: FittedBox(
+                                fit: BoxFit.fill, // 🛑 EDGE TO EDGE: Force fit to screen aspect ratio
+                                alignment: Alignment.topCenter,
+                                child: Container(
+                                  width: refW,
+                                  // 🛑 STABILITY FIX: No fixed height. 
+                                  // The FittedBox scales the natural height of the content to the screen height.
+                                  // 🛑 FEATURE: For Al-Fatiha (Page 1), remove bottom padding so BG runs to edge
+                                  padding: pageNum == 1 ? EdgeInsets.zero : const EdgeInsets.only(bottom: 80), 
+                                  child: content,
+                                ),
+                              ),
+                            );
+                          },
                         );
-                      }
-
-                      // 🛑 UI FIX: All other pages shrink to fit the screen (no scroll required)
-                      return Align(
-                        alignment: Alignment.topCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 90), // Optimized margin for global player
-                          child: FittedBox(
-                            fit: BoxFit.contain, // Scale up or down to fill available space
-                            alignment: Alignment.topCenter,
-                            child: SizedBox(
-                              width: MediaQuery.of(context).size.width,
-                              child: content,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                      },
+                    ),
                 ),
               ),
             ],
@@ -363,7 +374,7 @@ class _QuranReadModeState extends State<QuranReadMode> {
     );
   }
 
-  Widget _buildMushafContent(int pageNum, Color textColor, QuranSurah mainSurah, Color gold, Color emerald, [double fontScale = 1.5]) {
+  Widget _buildMushafContent(int pageNum, Color textColor, QuranSurah mainSurah, Color gold, Color emerald, double refH, [double fontScale = 1.5]) {
     final pageData = QuranPageService().getPageData(pageNum);
     List<Widget> content = [];
     
@@ -395,7 +406,12 @@ class _QuranReadModeState extends State<QuranReadMode> {
              padding: const EdgeInsets.only(bottom: 24),
              child: Text(
                "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ",
-               style: GoogleFonts.amiri(fontSize: 28, color: textColor.withOpacity(0.9)),
+                               style: const TextStyle(
+                  fontFamily: 'KFGQPCUthmanic',
+                  fontSize: 28,
+                  color: AppColors.primary,
+                ),
+
                textAlign: TextAlign.center,
              ),
            )
@@ -403,48 +419,39 @@ class _QuranReadModeState extends State<QuranReadMode> {
       }
       
       Widget surahView = Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        // 🛑 FEATURE RESTORED: Pinch-to-Zoom
-        child: InteractiveViewer(
-          minScale: 1.0,
-          maxScale: 3.0,
-          child: QuranPageView(
-            verses: surahData.verses.where((v) => v.id >= entry['start']! && v.id <= entry['end']!).toList(),
-            fontSize: _fontSize * fontScale, 
-            activeAyahId: _controller.activeAyahId,
-            textColor: textColor,
-            surahId: sID,
-            playingSurahId: _controller.currentSurahId,
-            onAyahDoubleTap: (s, a) {
-              HapticFeedback.mediumImpact();
-              _controller.isBrowsing = false; 
-              _controller.playSurah(s, ayahNumber: a);
-            },
-            onAyahLongPress: (s, a) {
-              HapticFeedback.heavyImpact();
-              _showAyahMenu(s, a); // 🛑 RESTORED: Context Menu
-            },
-            align: TextAlign.justify,
-          ),
+        padding: EdgeInsets.zero, // 🛑 EDGE TO EDGE: No horizontal padding
+        child: QuranPageView(
+          ayahs: surahData.ayahs.where((v) => v.id >= entry['start']! && v.id <= entry['end']!).toList(),
+          fontSize: _fontSize * fontScale, 
+          activeAyahId: _controller.activeAyahId,
+          textColor: textColor,
+          surahId: sID,
+          playingSurahId: _controller.currentSurahId,
+          onAyahDoubleTap: (s, a) {
+            HapticFeedback.mediumImpact();
+            _controller.isBrowsing = false; 
+            _controller.playSurah(s, ayahNumber: a);
+          },
+          onAyahLongPress: (s, a) {
+            HapticFeedback.heavyImpact();
+            _showAyahMenu(s, a); // 🛑 RESTORED: Context Menu
+          },
+          align: TextAlign.justify,
         ),
       );
 
-      // 🛑 UI FIX: Final Polish - Applying custom background for Al-Fatiha
+      // 🛑 UI FIX: Final Polish - Applying custom background for Al-Fatiha (Refined)
       if (sID == 1) {
         surahView = Container(
-          width: double.infinity,
-          // Force height to fill most of the screen so background reaches bottom
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height * 0.75,
-          ),
+          width: 400,
+          height: refH, // 🛑 EDGE TO EDGE: Match calculated reference height
           alignment: Alignment.center,
-          // 🛑 UI FIX: Significant inset to ensure text floats strictly inside the golden border
+          // 🛑 UI FIX: Balanced inset to ensure text floats strictly inside the golden border
           padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 80), 
           decoration: const BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/sura_alfateha.gif'),
-              fit: BoxFit.fill,
-              opacity: 0.5, // Balanced visibility
+              image: AssetImage('assets/images/sura_alfateha_brand.png'),
+              fit: BoxFit.fill, // 🛑 EDGE TO EDGE: Force frame to fill available canvas
             ),
           ),
           child: surahView,
@@ -453,7 +460,11 @@ class _QuranReadModeState extends State<QuranReadMode> {
       
       content.add(surahView);
     }
-    return Column(children: content);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween, // 🛑 UI FIX: Vertical Justification
+      children: content,
+    );
   }
 
 
@@ -496,9 +507,13 @@ class _QuranReadModeState extends State<QuranReadMode> {
   }
 
   void _showAyahMenu(int surahId, int ayahId) {
+    // 🛑 Z-INDEX FIX: Temporarily hide global player to prevent Z-index conflict
+    UnifiedAudioService().isPlayerVisible.value = false;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent, // Use transparency for floating look
+      isScrollControlled: true, // Allow it to be taller if needed
       builder: (context) => Container(
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -522,7 +537,7 @@ class _QuranReadModeState extends State<QuranReadMode> {
             const Divider(color: Colors.white10),
             ListTile(
               leading: const Icon(Icons.play_circle_outline, color: AppColors.primary),
-              title: const Text("Play Verse", style: TextStyle(color: Colors.white)),
+              title: const Text("Play Ayah", style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
                 _controller.playSurah(surahId, ayahNumber: ayahId);
@@ -539,7 +554,7 @@ class _QuranReadModeState extends State<QuranReadMode> {
             ),
             ListTile(
               leading: const Icon(Icons.share, color: Colors.white70),
-              title: const Text("Share Verse", style: TextStyle(color: Colors.white)),
+              title: const Text("Share Ayah", style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
                 // TODO: Implement Share logic
@@ -549,6 +564,12 @@ class _QuranReadModeState extends State<QuranReadMode> {
           ],
         ),
       ),
-    );
+    ).whenComplete(() {
+      // 🛑 Z-INDEX FIX: Restore player visibility
+      // Small delay to allow bottom sheet animation to clear
+      Future.delayed(const Duration(milliseconds: 300), () {
+        UnifiedAudioService().isPlayerVisible.value = true;
+      });
+    });
   }
 }

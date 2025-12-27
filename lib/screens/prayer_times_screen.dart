@@ -324,7 +324,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
                 const Icon(LucideIcons.map_pin, size: 14, color: AppColors.primary),
                 const SizedBox(width: 6),
                 Text(
-                  "Belmont, VA",
+                  _prayerTimes?.locationName ?? "Locating...",
                   style: GoogleFonts.outfit(
                     color: AppColors.textPrimaryDark,
                     fontWeight: FontWeight.bold,
@@ -352,7 +352,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> with WidgetsBindi
               children: [
                 // Minimal Hijri Date
                 Text(
-                  _prayerTimes?.dateHijri ?? "27 Jumada al-Awwal 1447 AH",
+                  _prayerTimes?.dateHijri ?? "",
                   style: GoogleFonts.outfit(
                     color: AppColors.textSecondaryDark, 
                     fontSize: 11,

@@ -13,7 +13,7 @@ import 'package:muslim_mind/main.dart';
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MuslimLifeAIApp());
+    await tester.pumpWidget(const MuslimMindApp());
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

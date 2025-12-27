@@ -27,9 +27,12 @@ class QuranAudioController extends ChangeNotifier {
   int? _currentSurahId;
   int? get currentSurahId => _currentSurahId;
   set currentSurahId(int? id) {
+    if (_currentSurahId == id) return;
     _currentSurahId = id;
     if (id != null) {
       _audioService.setContext(id);
+    } else {
+      resetPlayingContext();
     }
     notifyListeners();
   }
@@ -108,6 +111,12 @@ class QuranAudioController extends ChangeNotifier {
     // reset position to 0 to avoid matching OLD positions against NEW segments.
     if (!isPlaying) {
       currentPosition = Duration.zero;
+      activeAyahId = null;
+    }
+    
+    // Clear segments immediately if ID mismatch to avoid stale matches before fetch completes
+    if (ayahSegments.isNotEmpty && ayahSegments.first.surahId != surahId) {
+      ayahSegments = [];
       activeAyahId = null;
     }
 
@@ -235,7 +244,7 @@ class QuranAudioController extends ChangeNotifier {
     }
 
     if (isPlaying && activeAyahId != null && activeAyahId! > 0) {
-      if (activeAyahId! < 1 || activeAyahId! > surah.verses.length) return;
+      if (activeAyahId! < 1 || activeAyahId! > surah.ayahs.length) return;
 
       final qs = QuranPageService();
       final visualPage = (pageController.page?.round() ?? currentVisualPage) + 1;
@@ -313,7 +322,12 @@ class QuranAudioController extends ChangeNotifier {
     }
 
     isBrowsing = false; 
-    currentSurahId = surahId; // 🛑 HIGHLIGHT FIX: Set immediately for instant UI feedback
+    currentSurahId = surahId; 
+    
+    // 🛑 SYNC FIX: Explicitly fetch timestamps for manual interaction
+    // This ensures segments are ready even if auto-sync is skipped due to duplicate IDs.
+    fetchTimestamps(surahId);
+    
     _audioService.playSurah(surahId, ayahNumber: ayahNumber);
   }
 

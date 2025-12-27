@@ -6,25 +6,25 @@ class QuranPageService {
   factory QuranPageService() => _instance;
   QuranPageService._internal();
 
-  /// Returns the page number (1-604) for a specific verse.
-  int getPageNumber(int surahNumber, int verseNumber) {
-    return quran.getPageNumber(surahNumber, verseNumber);
+  /// Returns the page number (1-604) for a specific ayah.
+  int getPageNumber(int surahNumber, int ayahNumber) {
+    return quran.getPageNumber(surahNumber, ayahNumber);
   }
 
   /// Safe version of getPageNumber that handles Bismillah (-786) and out-of-bounds IDs.
-  int getSafePageNumber(int surahNumber, int verseNumber) {
-    if (verseNumber <= 0) return quran.getPageNumber(surahNumber, 1);
+  int getSafePageNumber(int surahNumber, int ayahNumber) {
+    if (ayahNumber <= 0) return quran.getPageNumber(surahNumber, 1);
     
-    // Clamp to surah's verse count to avoid "Invalid verse number" exception
-    final totalVerses = quran.getVerseCount(surahNumber);
-    final clampedVerse = verseNumber > totalVerses ? totalVerses : verseNumber;
+    // Clamp to surah's ayah count to avoid "Invalid ayah number" exception
+    final totalAyahs = quran.getVerseCount(surahNumber);
+    final clampedAyah = ayahNumber > totalAyahs ? totalAyahs : ayahNumber;
     
-    return quran.getPageNumber(surahNumber, clampedVerse);
+    return quran.getPageNumber(surahNumber, clampedAyah);
   }
 
-  /// Returns the Juz number for a specific verse.
-  int getJuzNumber(int surahNumber, int verseNumber) {
-    return quran.getJuzNumber(surahNumber, verseNumber);
+  /// Returns the Juz number for a specific ayah.
+  int getJuzNumber(int surahNumber, int ayahNumber) {
+    return quran.getJuzNumber(surahNumber, ayahNumber);
   }
 
   /// Returns total pages in the standard Mushaf (usually 604).

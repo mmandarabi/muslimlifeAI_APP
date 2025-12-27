@@ -54,7 +54,7 @@ class _SurahIntroScreenState extends State<SurahIntroScreen> {
   Widget build(BuildContext context) {
     final surahName = quran.getSurahName(widget.surahId);
     final arabicName = kUthmaniSurahTitles[widget.surahId] ?? quran.getSurahNameArabic(widget.surahId);
-    final verseCount = quran.getVerseCount(widget.surahId);
+    final ayahCount = quran.getVerseCount(widget.surahId);
     final place = quran.getPlaceOfRevelation(widget.surahId);
 
     return Scaffold(
@@ -124,7 +124,7 @@ class _SurahIntroScreenState extends State<SurahIntroScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _buildTag(context, "$verseCount Ayahs"),
+                            _buildTag(context, "$ayahCount Ayahs"),
                             const SizedBox(width: 12),
                             _buildTag(context, place),
                           ],

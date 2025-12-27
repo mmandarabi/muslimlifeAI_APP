@@ -22,7 +22,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<Map<String, String>> _messages = [
     {
       "role": "assistant", 
-      "text": "Assalamu Alaykum. I am Noor, your AI assistant. How can I help you today?"
+      "text": "I am Noor, your AI assistant. How can I help you today?"
     }
   ];
 
@@ -80,33 +80,59 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Header with Back Button
+            // Custom Header: Back, Title, Close
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               child: Stack(
-                alignment: Alignment.center,
                 children: [
-                  Align(
+                   // Left: Back (Optional, if navigated)
+                   Align(
                     alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(LucideIcons.chevron_left, color: Colors.white),
-                      onPressed: () {
-                        if (widget.onBack != null) {
-                          widget.onBack!();
-                        } else {
-                          Navigator.pop(context);
-                        }
+                    child: GestureDetector(
+                      onTap: () {
+                         if (widget.onBack != null) {
+                            widget.onBack!();
+                         } else {
+                            Navigator.pop(context);
+                         }
                       },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                           color: Colors.white.withOpacity(0.05),
+                           shape: BoxShape.circle,
+                        ),
+                        child: const Icon(LucideIcons.chevron_left, color: Colors.white, size: 20),
+                      ),
                     ),
                   ),
-                  Text(
-                    "Noor AI",
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                  
+                  // Center: Title
+                  Center(
+                    child: Text(
+                      "Noor AI",
+                      style: GoogleFonts.outfit(
+                         fontSize: 20,
+                         fontWeight: FontWeight.bold,
+                         color: Colors.white,
+                      ),
+                    ),
+                  ),
+
+                  // Right: Close
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                           color: Colors.white.withOpacity(0.05),
+                           shape: BoxShape.circle,
                         ),
+                        child: const Icon(LucideIcons.x, color: Colors.white, size: 20),
+                      ),
+                    ),
                   ),
                 ],
               ),

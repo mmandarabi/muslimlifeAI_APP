@@ -7,6 +7,8 @@ class PrayerTimes {
   final String isha;
   final String nextPrayer;
   final String nextPrayerTime;
+  final String dateHijri;
+  final String locationName;
 
   PrayerTimes({
     required this.fajr,
@@ -17,6 +19,8 @@ class PrayerTimes {
     required this.isha,
     required this.nextPrayer,
     required this.nextPrayerTime,
+    required this.dateHijri,
+    required this.locationName,
   });
 
   factory PrayerTimes.fromJson(Map<String, dynamic> json) {
@@ -29,10 +33,11 @@ class PrayerTimes {
       isha: json['isha'] ?? '--:--',
       nextPrayer: json['nextPrayer'] ?? '--',
       nextPrayerTime: json['nextPrayerTime'] ?? '--:--',
+      dateHijri: json['dateHijri'] ?? '--',
+      locationName: json['locationName'] ?? 'Determining...',
     );
   }
   
   // Getters for UI compatibility
   String get nextPrayerName => nextPrayer;
-  String get dateHijri => "27 Jumada al-Awwal 1447 AH"; // Placeholder until Hijri lib added
 }

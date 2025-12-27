@@ -105,7 +105,8 @@ void main() {
       {'s': 110, 'a': 1, 'f': 0, 't': 1000},
       {'s': 110, 'a': 2, 'f': 1000, 't': 2000},
       {'s': 110, 'a': 3, 'f': 2000, 't': 3000},
-      {'s': 110, 'a': 4, 'f': 3000, 't': 4000}, // Extra
+      {'s': 110, 'a': 4, 'f': 3000, 't': 4000},
+      {'s': 110, 'a': 5, 'f': 4000, 't': 5000}, // Extra (Now deviation is 2, should be rejected)
     ];
     final badJson = json.encode(badSegments);
     SharedPreferences.setMockInitialValues({'quran_timestamps_110': badJson});

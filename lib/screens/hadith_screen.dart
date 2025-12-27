@@ -52,7 +52,7 @@ class HadithScreen extends StatelessWidget {
                             color: AppColors.primary, size: 16),
                         const SizedBox(width: 8),
                         Text(
-                          "Daily Hadith",
+                          "Daily Hadith-Coming Soon",
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.bold,

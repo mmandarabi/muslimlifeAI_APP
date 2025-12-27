@@ -1,0 +1,2 @@
+![alt text](image-2.png)
+Hope page , all the contents are on page so no need to scroll right now i swipp up and down pagge moves abit up down no need all content are full fit in page no need on swipp screen the page shuld not jup up and donw like azan prayer screen it does not do any jump on swipp down or app this page should followo same role

@@ -1,0 +1,2 @@
+![alt text](image.png)
+Look buttom of the code we are still having muslimlife AI , while our app name is changed to Muslimmind , ensure there is no muslim alife namae in our product we moved from muslim lige AI name of the product

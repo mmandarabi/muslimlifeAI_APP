@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:muslim_mind/services/unified_audio_service.dart';
 import 'package:muslim_mind/services/quran_favorite_service.dart';
 import 'package:muslim_mind/theme/app_theme.dart';
@@ -71,102 +72,109 @@ class _ExpandableAudioPlayerState extends State<ExpandableAudioPlayer> with Sing
     final screenHeight = MediaQuery.of(context).size.height;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return ValueListenableBuilder<SurahContext?>(
-      valueListenable: _audioService.currentSurahContext,
-      builder: (context, surah, child) {
-        debugPrint("ExpandableAudioPlayer: Build. Surah: ${surah?.surahName ?? 'NULL'}");
-        if (surah == null) return const SizedBox.shrink();
+    return ValueListenableBuilder<bool>(
+      valueListenable: _audioService.isPlayerVisible,
+      builder: (context, isVisible, child) {
+        if (!isVisible) return const SizedBox.shrink();
 
-        return ValueListenableBuilder<double>(
-          valueListenable: _audioService.playerBottomPadding,
-          builder: (context, dynamicBottomPadding, _) {
-            return AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                final t = _controller.value;
-                // Transition values
-                final playerHeight = lerpDouble(72.0, screenHeight, t)!;
-                final borderRadius = lerpDouble(20.0, 0.0, t)!;
-                final horizontalPadding = lerpDouble(16.0, 0.0, t)!;
-                // dynamicBottomPadding is the "Resting" position (Mini player)
-                // When expanded (t=1.0), it should be 0.
-                final safeAreaOffset = (1 - t) * bottomPadding;
-                final bottomPos = lerpDouble(dynamicBottomPadding, 0.0, t)! + safeAreaOffset;
+        return ValueListenableBuilder<SurahContext?>(
+          valueListenable: _audioService.currentSurahContext,
+          builder: (context, surah, child) {
+            debugPrint("ExpandableAudioPlayer: Build. Surah: ${surah?.surahName ?? 'NULL'}");
+            if (surah == null) return const SizedBox.shrink();
 
-                return Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: horizontalPadding,
-                  right: horizontalPadding,
-                  bottom: bottomPos,
-                ),
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: SizedBox(
-                    height: playerHeight,
-                    child: GestureDetector(
-                      onVerticalDragUpdate: _handleVerticalDragUpdate,
-                      onVerticalDragEnd: _handleVerticalDragEnd,
-                      onTap: t < 0.1 ? _toggleExpanded : null,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(borderRadius),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.background,
-                            border: t < 0.1 ? Border.all(color: Colors.white.withOpacity(0.12)) : null,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.5 * (1 - t)),
-                                blurRadius: 20,
-                                offset: const Offset(0, -5),
-                              )
-                            ],
-                          ),
-                          child: Stack(
-                            children: [
-                              // 1. BACKGROUND LAYER (Strictly Raisin Black #202124)
-                              // 🛑 UX REQ: Strict color match, no transparency/glass in Mini Mode to ensure visibility and brand alignment.
-                              Positioned.fill(
-                                 child: Container(
-                                   decoration: BoxDecoration(
-                                     color: const Color(0xFF202124), // Raisin Black
-                                     borderRadius: BorderRadius.circular(borderRadius),
-                                   ),
-                                 ),
+            return ValueListenableBuilder<double>(
+              valueListenable: _audioService.playerBottomPadding,
+              builder: (context, dynamicBottomPadding, _) {
+                return AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    final t = _controller.value;
+                    // Transition values
+                    final playerHeight = lerpDouble(72.0, screenHeight, t)!;
+                    final borderRadius = lerpDouble(20.0, 0.0, t)!;
+                    final horizontalPadding = lerpDouble(16.0, 0.0, t)!;
+                    // dynamicBottomPadding is the "Resting" position (Mini player)
+                    // When expanded (t=1.0), it should be 0.
+                    final safeAreaOffset = (1 - t) * bottomPadding;
+                    final bottomPos = lerpDouble(dynamicBottomPadding, 0.0, t)! + safeAreaOffset;
+
+                    return Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: horizontalPadding,
+                      right: horizontalPadding,
+                      bottom: bottomPos,
+                    ),
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: SizedBox(
+                        height: playerHeight,
+                        child: GestureDetector(
+                          onVerticalDragUpdate: _handleVerticalDragUpdate,
+                          onVerticalDragEnd: _handleVerticalDragEnd,
+                          onTap: t < 0.1 ? _toggleExpanded : null,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.background,
+                                border: t < 0.1 ? Border.all(color: Colors.white.withOpacity(0.12)) : null,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.5 * (1 - t)),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, -5),
+                                  )
+                                ],
                               ),
-      
-                              // 2. MINI MODE CONTENT
-                              if (t < 0.5)
-                                Opacity(
-                                  opacity: (1 - t * 2).clamp(0.0, 1.0),
-                                  child: _buildMiniPlayer(surah),
-                                ),
-                              
-                              // 3. FULL MODE CONTENT
-                              if (t > 0.5)
-                                Opacity(
-                                  opacity: ((t - 0.5) * 2).clamp(0.0, 1.0),
-                                  child: _buildFullPlayer(surah),
-                                ),
+                              child: Stack(
+                                children: [
+                                  // 1. BACKGROUND LAYER (Strictly Raisin Black #202124)
+                                  // 🛑 UX REQ: Strict color match, no transparency/glass in Mini Mode to ensure visibility and brand alignment.
+                                  Positioned.fill(
+                                     child: Container(
+                                       decoration: BoxDecoration(
+                                         color: const Color(0xFF202124), // Raisin Black
+                                         borderRadius: BorderRadius.circular(borderRadius),
+                                       ),
+                                     ),
+                                  ),
+          
+                                  // 2. MINI MODE CONTENT
+                                  if (t < 0.5)
+                                    Opacity(
+                                      opacity: (1 - t * 2).clamp(0.0, 1.0),
+                                      child: _buildMiniPlayer(surah),
+                                    ),
+                                  
+                                  // 3. FULL MODE CONTENT
+                                  if (t > 0.5)
+                                    Opacity(
+                                      opacity: ((t - 0.5) * 2).clamp(0.0, 1.0),
+                                      child: _buildFullPlayer(surah),
+                                    ),
 
-                              // 🛑 UI FIX: Local Overlay for Selectors (Guaranteed Top Z-Index)
-                              if (_activeOverlay != null)
-                                Positioned.fill(child: _activeOverlay!),
-                            ],
+                                  // 🛑 UI FIX: Local Overlay for Selectors (Guaranteed Top Z-Index)
+                                  if (_activeOverlay != null)
+                                    Positioned.fill(child: _activeOverlay!),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                    );
+                  },
                 );
               },
             );
           },
         );
-      },
+      }
     );
   }
 
@@ -407,9 +415,12 @@ class _ExpandableAudioPlayerState extends State<ExpandableAudioPlayer> with Sing
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                IconButton(
-                  icon: const Icon(LucideIcons.shuffle, color: Colors.white, size: 24),
-                  onPressed: () {},
+                Opacity(
+                  opacity: 0.3,
+                  child: IconButton(
+                    icon: const Icon(LucideIcons.list_music, color: Colors.white, size: 24),
+                    onPressed: () {}, // Queue/Playlist functionality placeholder
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(LucideIcons.skip_back, color: Colors.white, size: 36),
@@ -456,9 +467,26 @@ class _ExpandableAudioPlayerState extends State<ExpandableAudioPlayer> with Sing
                   icon: const Icon(LucideIcons.skip_forward, color: Colors.white, size: 36),
                   onPressed: () => _audioService.playSurah(surah.surahId + 1),
                 ),
-                IconButton(
-                  icon: const Icon(LucideIcons.repeat, color: Colors.white, size: 24),
-                  onPressed: () {},
+                StreamBuilder<LoopMode>(
+                  stream: _audioService.onPlayerStateChanged.map((s) => _audioService.loopMode),
+                  builder: (context, snapshot) {
+                    final loopMode = _audioService.loopMode;
+                    final isLooping = loopMode != LoopMode.off;
+                    return IconButton(
+                      icon: Icon(
+                        loopMode == LoopMode.one ? LucideIcons.repeat_1 : LucideIcons.repeat, 
+                        color: isLooping ? AppColors.primary : Colors.white, 
+                        size: 24
+                      ),
+                      onPressed: () {
+                        final nextMode = loopMode == LoopMode.off 
+                            ? LoopMode.all 
+                            : (loopMode == LoopMode.all ? LoopMode.one : LoopMode.off);
+                        _audioService.setLoopMode(nextMode);
+                        setState(() {});
+                      },
+                    );
+                  }
                 ),
               ],
             ),

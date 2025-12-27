@@ -8,7 +8,7 @@ import '../../models/quran_display_names.dart';
 import '../../theme/app_theme.dart';
 
 class QuranPageView extends StatelessWidget {
-  final List<QuranAyah> verses;
+  final List<QuranAyah> ayahs;
   final double fontSize;
   final int? activeAyahId;
   final Color textColor;
@@ -20,7 +20,7 @@ class QuranPageView extends StatelessWidget {
 
   const QuranPageView({
     super.key,
-    required this.verses,
+    required this.ayahs,
     required this.fontSize,
     required this.activeAyahId,
     required this.textColor,
@@ -33,13 +33,13 @@ class QuranPageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (verses.isEmpty) {
+    if (ayahs.isEmpty) {
       return Text("No ayahs found", style: TextStyle(color: textColor));
     }
 
     List<InlineSpan> textSpans = [];
 
-    for (var ayah in verses) {
+    for (var ayah in ayahs) {
       final isActive = (surahId == playingSurahId && ayah.id == activeAyahId);
       final ayahColor = isActive ? AppColors.primary : textColor;
       
@@ -84,7 +84,7 @@ class QuranPageView extends StatelessWidget {
           style: TextStyle(
             fontFamily: 'KFGQPCUthmanic',
             fontSize: fontSize, 
-            height: 2.1,
+            height: 1.7, // 🛑 UI FIX: Slightly taller line height for elite vertical fill
             color: ayahColor,
             backgroundColor: isActive ? AppColors.primary.withValues(alpha: 0.15) : null,
           ),
@@ -193,8 +193,9 @@ class SurahHeaderCartouche extends StatelessWidget {
           ),
           Text(
             "سُورَةُ $surahName",
-            style: GoogleFonts.amiri(
-              fontSize: 26,
+            style: TextStyle(
+              fontFamily: 'KFGQPCUthmanic',
+              fontSize: 28,
               fontWeight: FontWeight.bold,
               color: accentColor,
               height: 1.2,

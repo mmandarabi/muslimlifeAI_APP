@@ -3,10 +3,33 @@ import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:muslim_mind/theme/app_theme.dart';
 import 'package:muslim_mind/widgets/glass_card.dart';
+import 'package:muslim_mind/services/prayer_service.dart';
 
-class CommunityScreen extends StatelessWidget {
+class CommunityScreen extends StatefulWidget {
   final VoidCallback? onBack;
   const CommunityScreen({super.key, this.onBack});
+
+  @override
+  State<CommunityScreen> createState() => _CommunityScreenState();
+}
+
+class _CommunityScreenState extends State<CommunityScreen> {
+  String _locationName = "Determining...";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocation();
+  }
+
+  Future<void> _loadLocation() async {
+    final cached = await PrayerService().loadCachedData();
+    if (cached != null && mounted) {
+      setState(() {
+        _locationName = cached.locationName;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,13 +40,13 @@ class CommunityScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Standard Back Button Header
-            if (onBack != null)
+            if (widget.onBack != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    onBack!();
+                    widget.onBack!();
                   },
                   child: Align(
                      alignment: Alignment.centerLeft,
@@ -62,7 +85,7 @@ class CommunityScreen extends StatelessWidget {
                           size: 14, color: AppColors.primary),
                       const SizedBox(width: 6),
                       Text(
-                        "Belmont, VA",
+                        _locationName,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: Colors.white,
                             ),

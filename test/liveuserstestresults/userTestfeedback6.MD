@@ -1,0 +1,2 @@
+![alt text](image.png)
+Look 2nd screen there is a sura named ق look at 1st screen i search for sura ق i see all suras that contain word ق while that is true makes sence but the search should be smart to show the sura thats much close to the search first . Right now ق is the closest match buts number 6 down screen albaqara is first its should rannit by sura order but to closes search match . Search is current only working on quran tap it should work on favourite and juz too. We are not allow any search on aya

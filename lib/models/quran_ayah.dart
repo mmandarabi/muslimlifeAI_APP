@@ -2,7 +2,7 @@ class QuranAyah {
   final int id;
   final String text;
 
-  // The 'id' in verses array is usually the verse number within the Surah for this specific JSON structure
+  // The 'id' in ayahs array is usually the ayah number within the Surah for this specific JSON structure
   QuranAyah({
     required this.id,
     required this.text,
