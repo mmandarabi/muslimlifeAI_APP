@@ -1,0 +1,24 @@
+VERIFICATION REPORT
+===================
+  ❌ Page 2 Line 8: Underflow! Expected 3, Available 2
+  ❌ Page 5 Line 15: Underflow! Expected 10, Available 9
+  ❌ Page 19 Line 15: Underflow! Expected 11, Available 10
+  ❌ Page 21 Line 15: Underflow! Expected 10, Available 9
+  ❌ Page 22 Line 15: Underflow! Expected 10, Available 9
+  ❌ Page 23 Line 15: Underflow! Expected 10, Available 9
+  ❌ Page 24 Line 15: Underflow! Expected 12, Available 9
+  ❌ Page 26 Line 15: Underflow! Expected 11, Available 10
+  ❌ Page 28 Line 15: Underflow! Expected 7, Available 6
+  ❌ Page 30 Line 15: Underflow! Expected 11, Available 10
+  ❌ Page 35 Line 15: Underflow! Expected 9, Available 8
+  ❌ Page 44 Line 15: Underflow! Expected 10, Available 9
+  ❌ Page 47 Line 15: Underflow! Expected 12, Available 11
+  ❌ Page 48 Line 15: Underflow! Expected 10, Available 9
+  ❌ Page 56 Line 15: Underflow! Expected 8, Available 7
+  ❌ Page 100 Line 15: Underflow! Expected 9, Available 8
+  ❌ Page 107 Line 15: Underflow! Expected 10, Available 8
+  ❌ Page 108 Line 15: Underflow! Expected 8, Available 7
+  ❌ Page 109 Line 15: Underflow! Expected 9, Available 8
+  ❌ Page 112 Line 15: Underflow! Expected 9, Available 8
+  ❌ Page 117 Line 15: Underflow! Expected 12, Available 11
+Aborting verification due to too many errors.

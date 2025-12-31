@@ -9,6 +9,7 @@ import 'package:muslim_mind/theme/app_theme.dart';
 import 'package:muslim_mind/widgets/glass_card.dart';
 import 'package:muslim_mind/widgets/settings_bottom_sheet.dart';
 import 'package:muslim_mind/screens/chat_screen.dart';
+import 'package:muslim_mind/services/quran_local_service.dart';
 import 'package:shimmer/shimmer.dart';
 
 class HomeTab extends StatefulWidget {
@@ -33,6 +34,7 @@ class _HomeTabState extends State<HomeTab> {
     super.initState();
     // 1. Instant Cache Load (Offline First)
     _loadCache();
+    _loadReadHistory(); // 🛑 RESUME LOGIC
     // 2. Background Network Fetch
     _refreshData();
   }
@@ -44,6 +46,20 @@ class _HomeTabState extends State<HomeTab> {
         _prayerTimes = cached;
         _isLoading = false; // Show content immediately
         _calculateNextPrayer(cached);
+      });
+    }
+  }
+
+  // 🛑 HISTORY: Last Read Surah
+  String _lastReadSurah = "AL-BAQARAH"; // Default fallback
+  bool _hasReadHistory = false;
+
+  Future<void> _loadReadHistory() async {
+    final history = await QuranLocalService().getLastAccessed();
+    if (history != null && mounted) {
+      setState(() {
+        _lastReadSurah = history['name'];
+        _hasReadHistory = true;
       });
     }
   }
@@ -195,11 +211,11 @@ class _HomeTabState extends State<HomeTab> {
               childAspectRatio: 1.3, // Taller items (was 1.35) to fill more space
               padding: EdgeInsets.zero,
               children: [
-                _hubGridItem("The Holy Quran", "RESUME AL-BAQARAH", LucideIcons.book_open, 1),
-                _hubGridItem("Hadith Collection", "DAILY WISDOM", LucideIcons.scroll_text, 2),
+                _hubGridItem("The Holy Quran", _hasReadHistory ? "RESUME $_lastReadSurah" : "START READING", LucideIcons.book_open, 1),
+                _hubGridItem("Hadith Collection", "COMING SOON", LucideIcons.scroll_text, 2, isEnabled: false),
                 _hubGridItem("Prayer Times", "AZAN SCHEDULE", LucideIcons.clock, 6), // 🛑 SWAP: Pos 3
                 _hubGridItem("Qibla Finder", "MECCA DIRECTION", LucideIcons.compass, 5),
-                _hubGridItem("Community", "EVENTS & MASJIDS", LucideIcons.users, 3), // 🛑 SWAP: Pos 6
+                _hubGridItem("Community", "COMING SOON", LucideIcons.users, 3, isEnabled: false), // 🛑 SWAP: Pos 6
               ],
             ),
             
@@ -299,7 +315,7 @@ class _HomeTabState extends State<HomeTab> {
                             fontSize: 10,
                             letterSpacing: 4,
                             fontWeight: FontWeight.w900,
-                            color: secondaryTextColor.withOpacity(0.3),
+                            color: accentColor, // 🛑 CHANGED: Aged Gold
                           ),
                         ),
                         _isLoading 
@@ -331,12 +347,12 @@ class _HomeTabState extends State<HomeTab> {
                         Icon(LucideIcons.map_pin, size: 10, color: accentColor),
                         const SizedBox(width: 4),
                         Text(
-                          "WASHINGTON, D.C.",
+                          _prayerTimes?.locationName.toUpperCase() ?? "LOCATING...", // 🛑 CHANGED: Dynamic
                           style: GoogleFonts.inter(
                             fontSize: 9,
                             letterSpacing: 1,
                             fontWeight: FontWeight.w700,
-                            color: secondaryTextColor.withOpacity(0.4),
+                            color: accentColor, // 🛑 CHANGED: Aged Gold
                           ),
                         ),
                       ],
@@ -445,69 +461,72 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   /// Compact Grid Item (Vertical Stack)
-  Widget _hubGridItem(String title, String subtitle, IconData icon, int targetIndex, {bool isAccent = false}) {
+  Widget _hubGridItem(String title, String subtitle, IconData icon, int targetIndex, {bool isAccent = false, bool isEnabled = true}) {
     return GestureDetector(
-      onTap: () => widget.onNavigate(targetIndex),
+      onTap: isEnabled ? () => widget.onNavigate(targetIndex) : null,
       child: GlassCard(
         borderRadius: 24,
         padding: const EdgeInsets.all(16),
         sigma: 0,
         showPattern: false,
-        opacity: 0.15,
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Icon Container
-            Container(
-              width: 42, // Restored size
-              height: 42, 
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withOpacity(0.05)),
-              ),
-              child: Icon(
-                icon, 
-                color: isAccent ? AppColors.accent : AppColors.textPrimaryDark.withOpacity(0.8), 
-                size: 20 // Restored size
-              ),
-            ),
-            const SizedBox(height: 12), // Restored spacing
-            // Title
-            Expanded( // Use expanded to prevent overflow
-             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.outfit(
-                    fontSize: 14, // Reduced from 16
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimaryDark,
-                  ),
+        opacity: isEnabled ? 0.15 : 0.05,
+        border: Border.all(color: Colors.white.withOpacity(isEnabled ? 0.04 : 0.02)),
+        child: Opacity(
+          opacity: isEnabled ? 1.0 : 0.5,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Icon Container
+              Container(
+                width: 42, // Restored size
+                height: 42, 
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
                 ),
-                const SizedBox(height: 2), // Reduced from 4
-                // Subtitle
-                Text(
-                  subtitle.toUpperCase(),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 7, // Reduced from 8
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textSecondaryDark.withOpacity(0.3),
-                  ),
+                child: Icon(
+                  icon, 
+                  color: isAccent ? AppColors.accent : AppColors.textPrimaryDark.withOpacity(0.8), 
+                  size: 20 // Restored size
                 ),
-              ],
-             ),
-            ),
-          ],
+              ),
+              const SizedBox(height: 12), // Restored spacing
+              // Title
+              Expanded( // Use expanded to prevent overflow
+               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14, // Reduced from 16
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimaryDark,
+                    ),
+                  ),
+                  const SizedBox(height: 2), // Reduced from 4
+                  // Subtitle
+                  Text(
+                    subtitle.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 7, // Reduced from 8
+                      letterSpacing: 1.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textSecondaryDark.withOpacity(0.3),
+                    ),
+                  ),
+                ],
+               ),
+              ),
+            ],
+          ),
         ),
       ),
     );

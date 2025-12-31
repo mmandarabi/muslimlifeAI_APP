@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:audio_service/audio_service.dart'; // 🆕 PHASE 2.5
 
 import 'package:muslim_mind/screens/dashboard_screen.dart';
 import 'package:muslim_mind/screens/intro_screen.dart';
@@ -10,6 +11,7 @@ import 'package:muslim_mind/theme/app_theme.dart';
 import 'package:muslim_mind/services/prayer_log_service.dart';
 import 'package:muslim_mind/services/theme_service.dart';
 import 'package:muslim_mind/services/unified_audio_service.dart';
+import 'package:muslim_mind/services/quran_audio_handler.dart'; // 🆕 PHASE 2.5
 
 import 'firebase_options.dart';
 import 'package:muslim_mind/widgets/expandable_audio_player.dart';
@@ -24,6 +26,7 @@ Future<void> main() async {
     UnifiedAudioService().init(),
     PrayerLogService().init(),
     _initializeFirebase(),
+    // _initializeAudioService(), // 🔧 HOTFIX: Disabled - was breaking audio playback
   ]);
 
   // Use Emulators in Debug Mode
@@ -36,9 +39,9 @@ Future<void> main() async {
       // Actually, standard practice:
       // String host = defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost';
       
-      await FirebaseAuth.instance.useAuthEmulator(emulatorHost, 9099);
+      // await FirebaseAuth.instance.useAuthEmulator(emulatorHost, 9099); // Connects to local emulator, not live Firebase
       // FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost, 8080); // Uncomment if Firestore is used
-      debugPrint('Using Firebase Emulator at $emulatorHost:9099');
+      debugPrint('Firebase Emulator connection is currently disabled. Connecting to LIVE Firebase.');
     } catch (e) {
       debugPrint('Error interacting with emulator: $e');
     }
@@ -64,6 +67,25 @@ Future<void> _initializeFirebase() async {
       rethrow;
     }
     debugPrint('Firebase already initialized');
+  }
+}
+
+/// 🆕 PHASE 2.5: Initialize audio_service for background playback
+Future<void> _initializeAudioService() async {
+  try {
+    await AudioService.init(
+      builder: () => QuranAudioHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.muslimlife.muslimmind.audio',
+        androidNotificationChannelName: 'Quran Recitation',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: true,
+      ),
+    );
+    debugPrint('AudioService initialized successfully');
+  } catch (e) {
+    debugPrint('AudioService initialization error: $e');
+    // Non-fatal: App can still work without background audio
   }
 }
 

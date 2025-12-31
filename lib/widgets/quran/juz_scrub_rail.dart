@@ -53,12 +53,11 @@ class _JuzScrubRailState extends State<JuzScrubRail> {
   }
 
   Widget _buildHudBubble(Offset globalPos, int juz) {
-    // Offset to the LEFT of the finger (Rail is usually on right or near content)
-    // The rail is inside the content row.
+    // Position to the RIGHT of the rail (toward content area) for easy visibility
+    // The rail is on the far left, so we add spacing to move the bubble right
     return Positioned(
-      // Left side of screen logic:
-      top: globalPos.dy - 40, // Center Vertically
-      left: globalPos.dx - 140, // Left of finger
+      top: globalPos.dy - 40, // Center vertically with touch point
+      left: globalPos.dx + 16, // To the right of the rail with 16px spacing
       child: Material(
         color: Colors.transparent,
         child: ClipRRect(

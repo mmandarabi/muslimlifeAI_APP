@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../models/quran_surah.dart';
 import '../models/quran_ayah.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class QuranLocalService {
   static final QuranLocalService _instance = QuranLocalService._internal();
@@ -57,6 +58,34 @@ class QuranLocalService {
       (s) => s.id == surahNumber,
       orElse: () => throw Exception("Surah $surahNumber not found"),
     );
+  }
+
+  // 🛑 PERSISTENCE: Track Last Read Surah for Home Resume
+  static const String _keyLastSurahId = 'last_read_surah_id';
+  static const String _keyLastSurahName = 'last_read_surah_name';
+
+  Future<void> saveLastAccessed(int surahId, String surahName) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_keyLastSurahId, surahId);
+      await prefs.setString(_keyLastSurahName, surahName);
+    } catch (e) {
+      debugPrint("QuranLocalService: Failed to save progress: $e");
+    }
+  }
+
+  Future<Map<String, dynamic>?> getLastAccessed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final id = prefs.getInt(_keyLastSurahId);
+      final name = prefs.getString(_keyLastSurahName);
+      if (id != null && name != null) {
+        return {'id': id, 'name': name};
+      }
+    } catch (e) {
+      debugPrint("QuranLocalService: Failed to load progress: $e");
+    }
+    return null;
   }
 }
 

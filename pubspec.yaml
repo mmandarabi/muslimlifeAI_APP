@@ -1,7 +1,7 @@
 name: muslim_mind
 description: A High-Fidelity Investor Demo for MuslimLife AI.
 publish_to: 'none'
-version: 1.0.8+101
+version: 1.0.9+103
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -26,6 +26,7 @@ dependencies:
   adhan: ^2.0.0
   vector_math: ^2.1.4
   just_audio: ^0.9.36
+  audio_service: ^0.18.15  # 🆕 PHASE 2.5: Background audio playback
   audio_session: ^0.1.18
   shared_preferences: ^2.5.4
   flutter_local_notifications: ^19.5.0
@@ -36,6 +37,8 @@ dependencies:
   shimmer: ^3.0.0
   geocoding: ^4.0.0
   hijri: ^3.0.0
+  sqflite: ^2.3.0
+  path: ^1.8.3
 
 dev_dependencies:
   flutter_test:
@@ -44,6 +47,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_native_splash: ^2.4.0
   shared_preferences_platform_interface: ^2.4.1
+  sqflite_common_ffi: ^2.3.0
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -71,10 +75,26 @@ flutter:
   uses-material-design: true
   assets:
     - assets/quran/
+    - assets/quran/databases/
+    - assets/quran/fonts/
     - assets/images/
     - assets/audio/
     - assets/audio/Adhan/
+    - assets/audio/quran/aya_by_aya/
+    - assets/audio/quran/surah_by_surah/AbdulBasitAbdulSamad/
+    - assets/audio/quran/surah_by_surah/surah-recitation-mishari-rashid-al-afasy-streaming/
   fonts:
-    - family: KFGQPCUthmanic
+    # KFGQPCUthmanic font archived - unused
+
+    - family: QCF_BSML
       fonts:
-        - asset: assets/fonts/KFGQPC-Uthmanic-Script-HAFS.otf
+        - asset: assets/quran/fonts/QCF2BSML.ttf
+    - family: QuranCommon
+      fonts:
+        - asset: assets/fonts/Juznamefont/quran-common.ttf
+    - family: QCF_SurahHeader
+      fonts:
+        - asset: assets/fonts/suraname/surah-name-v4.ttf
+    - family: QCF_SurahHeader_Frame
+      fonts:
+        - asset: assets/fonts/Surahheaderfont/QCF_SurahHeader_COLOR-Regular.ttf

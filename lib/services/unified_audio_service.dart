@@ -14,6 +14,9 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:quran/quran.dart' as quran;
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import '../models/word_segment.dart';
+import '../models/reciter_manifest.dart';
+import 'audio_segment_service.dart';
 
 class SurahContext {
   final int surahId;
@@ -81,6 +84,11 @@ class UnifiedAudioService with WidgetsBindingObserver {
   // Timestamp Data Cache
   final Map<int, List<AyahSegment>> _ayahTimestampCache = {};
   final Map<int, String> _cachedAudioUrls = {}; // 🛑 NEW: Cache valid Audio URLs
+
+  // Test Override
+  @visibleForTesting
+  AudioSegmentService? segmentServiceOverride;
+
 
   // State
   String? _currentAsset; 
@@ -543,6 +551,14 @@ class UnifiedAudioService with WidgetsBindingObserver {
         if (_audioPlayer != null) {
           try {
             await _audioPlayer!.stop();
+            // 🔧 FIX: Clear audio source to prevent "Platform player already exists" error
+            try {
+              await _audioPlayer!.setAudioSource(
+                AudioSource.uri(Uri.parse('about:blank')),
+              );
+            } catch (e) {
+              // Ignore cleanup errors
+            }
           } catch (e) {
             debugPrint("UnifiedAudioService: Warning - Old player stop failed (Ignored): $e");
           }
@@ -708,7 +724,25 @@ class UnifiedAudioService with WidgetsBindingObserver {
 
       if (_notificationEnabled || _soundEnabled) {
         // 🛑 iOS/Android FIX: Use actual asset filename or raw resource.
-        final String soundFile = 'Makkah.mp3'; 
+        String iosSoundFile = 'Makkah.mp3';
+        String androidResource = 'adhan_makkah';
+
+        switch (_currentVoice.toLowerCase()) {
+          case 'madinah': 
+            iosSoundFile = 'Madinah.mp3'; 
+            androidResource = 'adhan_madinah'; // Assuming Android resources exist
+            break;
+          case 'quds': 
+            iosSoundFile = 'Al-Quds.mp3'; 
+            androidResource = 'adhan_quds';
+            break;
+          case 'makkah':
+          default:
+            iosSoundFile = 'Makkah.mp3'; 
+            androidResource = 'adhan_makkah';
+            break;
+        }
+
         final String bodyText = _soundEnabled 
             ? "Adhan is playing. Come to success." 
             : "Time for $prayerName Prayer. Hayya 'ala-s-Salah.";
@@ -725,14 +759,14 @@ class UnifiedAudioService with WidgetsBindingObserver {
                channelDescription: 'Plays Adhan sound or notification at prayer time',
                importance: _soundEnabled ? fln.Importance.max : fln.Importance.high, 
                priority: _soundEnabled ? fln.Priority.max : fln.Priority.high,
-               sound: _soundEnabled ? fln.RawResourceAndroidNotificationSound('adhan_makkah') : null,
+               sound: _soundEnabled ? fln.RawResourceAndroidNotificationSound(androidResource) : null,
                playSound: _soundEnabled,
                fullScreenIntent: _soundEnabled,
             ),
             iOS: fln.DarwinNotificationDetails(
-              presentAlert: true,
+              presentAlert: _notificationEnabled, // 🛑 FIX: Respect User Pref
               presentSound: _soundEnabled,
-              sound: _soundEnabled ? soundFile : null,
+              sound: _soundEnabled ? iosSoundFile : null,
             ),
           ),
           androidScheduleMode: fln.AndroidScheduleMode.exactAllowWhileIdle,
@@ -763,92 +797,93 @@ class UnifiedAudioService with WidgetsBindingObserver {
   }
 
   Future<List<AyahSegment>> getAyahTimestamps(int surahId) async {
-    // 1. Check Memory Cache
+    // 1. Try to get precise word-level segments from local JSON first
+    try {
+      final wordSegments = await getWordSegments(surahId);
+      if (wordSegments.isNotEmpty) {
+        // Aggregate word segments into ayah segments
+        final ayahSegments = <AyahSegment>[];
+        
+        // Group by Ayah ID
+        final Map<int, List<WordSegment>> byAyah = {};
+        for (var seg in wordSegments) {
+          byAyah.putIfAbsent(seg.ayahNumber, () => []).add(seg);
+        }
+        
+        // Create AyahSegments from bounds of word segments
+        for (var e in byAyah.entries) {
+          final words = e.value;
+          if (words.isEmpty) continue;
+          
+          // Sort just in case
+          words.sort((a, b) => a.timestampFrom.compareTo(b.timestampFrom));
+          
+          // Determine bounds (start of first word to end of last word)
+          final startMs = words.first.timestampFrom;
+          final endMs = words.last.timestampTo;
+          
+          ayahSegments.add(AyahSegment(
+            surahId: surahId, 
+            ayahNumber: e.key, 
+            timestampFrom: startMs, 
+            timestampTo: endMs
+          ));
+        }
+        
+        // Sort by ayah number
+        ayahSegments.sort((a, b) => a.ayahNumber.compareTo(b.ayahNumber));
+        
+        if (ayahSegments.isNotEmpty) {
+          debugPrint("✅ UnifiedAudioService: Generated ${ayahSegments.length} ayah timestamps from local JSON for Surah $surahId");
+          _ayahTimestampCache[surahId] = ayahSegments;
+          return ayahSegments;
+        }
+      }
+    } catch (e) {
+      debugPrint("⚠️ UnifiedAudioService: Failed to parse local segments: $e. Falling back to API.");
+    }
+
+    // 2. Fallback to cached API timestamps
     if (_ayahTimestampCache.containsKey(surahId)) {
       return _ayahTimestampCache[surahId]!;
     }
 
-    // 2. Check Disk Cache (Offline Support)
+    debugPrint("UnifiedAudioService: Fetching ayah timestamps for Surah $surahId from QDC API");
+
+    final url = Uri.parse("https://api.quran.com/api/v4/chapter_recitations/3/$surahId?segments=true");
+    
     try {
-       final prefs = await SharedPreferences.getInstance();
-       final String key = 'quran_timestamps_$surahId';
-       final String? cachedJson = prefs.getString(key);
-       
-       if (cachedJson != null) {
-         final List<dynamic> decoded = json.decode(cachedJson);
-         final List<AyahSegment> segments = decoded.map((m) => AyahSegment.fromMap(m)).toList();
-         
-         // 🛑 SYNC FIX: Load the cached URL as well
-         final String? cachedUrl = prefs.getString('quran_url_$surahId');
-         if (cachedUrl != null) {
-           _cachedAudioUrls[surahId] = cachedUrl;
-         }
-
-          if (_validateDataIntegrity(surahId, segments)) {
-            debugPrint("UnifiedAudioService: Loaded timestamps for Surah $surahId from disk.");
-            _ayahTimestampCache[surahId] = segments;
-            return segments;
-          } else {
-             // If cached data is invalid, remove it so we re-fetch
-             try {
-                prefs.remove(key);
-                prefs.remove('quran_url_$surahId');
-                debugPrint("UnifiedAudioService: Purged corrupted cache for Surah $surahId");
-             } catch(e) {}
-          }
-       }
-    } catch (e) {
-      debugPrint("UnifiedAudioService: Disk cache read error: $e");
-    }
-
-    // 🛑 ATOMICITY FIX: Clear cache for this Surah to prevent "Leakage" during fetch
-    if (_ayahTimestampCache.containsKey(surahId)) {
-       _ayahTimestampCache.remove(surahId);
-    }
-
-    try {
-      debugPrint("UnifiedAudioService: Fetching precision timestamps for Surah $surahId...");
-      final url = 'https://api.quran.com/api/v4/chapter_recitations/3/$surahId?segments=true';
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final audioFile = data['audio_file'];
-        final String audioUrl = audioFile['audio_url'];
-        final List<dynamic> timestampData = audioFile['timestamps'];
-        
-        // 🛑 SYNC FIX: Cache the Authoritative URL
-        _cachedAudioUrls[surahId] = audioUrl;
-        
-        final List<AyahSegment> segments = timestampData.map((t) {
-          final parts = t['verse_key'].toString().split(':');
-          final ayahNum = int.parse(parts[1]);
-          
+        final segments = audioFile['verse_timestamps'] as List;
+
+        List<AyahSegment> ayahSegments = segments.map((s) {
+          final key = s['verse_key'] as String; // "1:1"
+          final ayahNum = int.parse(key.split(':')[1]);
+          final timestamp = s['timestamp_from'] as int;
+          final durationMs = s['duration_ms'] as int; // API gives duration, not end time
+
           return AyahSegment(
-            surahId: surahId, // 🛑 SYNC 2.0: Tag Data
+            surahId: surahId,
             ayahNumber: ayahNum,
-            timestampFrom: t['timestamp_from'],
-            timestampTo: t['timestamp_to'],
+            timestampFrom: timestamp,
+            timestampTo: timestamp + durationMs,
           );
         }).toList();
 
-        // 🛑 DATA GUARD: Verify Segment Count & Context
-        if (_validateDataIntegrity(surahId, segments)) {
-           _ayahTimestampCache[surahId] = segments;
-           
-           // 3. Save to Disk (URL + Timestamps)
-           _saveTimestampsToDisk(surahId, segments, audioUrl);
-           
-           return segments;
-        } else {
-           return []; // Reject bad data
-        }
+        _ayahTimestampCache[surahId] = ayahSegments;
+        return ayahSegments;
+      } else {
+        debugPrint("UnifiedAudioService: API Error ${response.statusCode}");
+        return [];
       }
     } catch (e) {
-      debugPrint("UnifiedAudioService: Error fetching timestamps: $e");
+      debugPrint("UnifiedAudioService: Network Error: $e");
+      return [];
     }
-
-    return [];
   }
 
   Future<void> _saveTimestampsToDisk(int surahId, List<AyahSegment> segments, String? url) async {
@@ -865,7 +900,7 @@ class UnifiedAudioService with WidgetsBindingObserver {
     }
   }
 
-  // 🛑 DATA GUARD: Verify Segment Count & Context
+  
   bool _validateDataIntegrity(int surahId, List<AyahSegment> segments) {
     if (segments.isEmpty) return false;
 
@@ -880,13 +915,55 @@ class UnifiedAudioService with WidgetsBindingObserver {
     final expectedAyahs = quran.getVerseCount(surahId);
     final fetchedAyahs = segments.last.ayahNumber;
     
-    // Allow deviation of 1 (sometimes Bismillah is counted or not)
-    if ((fetchedAyahs - expectedAyahs).abs() > 1) {
-       debugPrint("UnifiedAudioService: CRITICAL DATACORRUPTION - Surah $surahId expected $expectedAyahs ayahs but got $fetchedAyahs. Rejecting data.");
+    if (fetchedAyahs != expectedAyahs) {
+       debugPrint("UnifiedAudioService: DATA INTEGRITY FAIL - Surah $surahId expects $expectedAyahs ayahs but got $fetchedAyahs. Rejecting.");
        return false;
     }
+
     return true;
   }
+
+  /// 🆕 WORD-LEVEL SYNC: Gets word-level segments from local JSON.
+  /// Replaces QDC API calls with offline-first local data.
+  Future<List<WordSegment>> getWordSegments(int surahId) async {
+    try {
+      final segmentService = segmentServiceOverride ?? AudioSegmentService();
+      
+      // Map legacy reciter ID to new manifest ID
+      final reciterId = ReciterManifest.mapLegacyReciterId(_currentQuranReciter) ?? 'sudais';
+      
+      debugPrint("UnifiedAudioService: Loading word segments for Surah $surahId (Reciter: $reciterId)");
+      
+      final segments = await segmentService.getWordSegments(surahId, reciterId);
+      
+      debugPrint("UnifiedAudioService: Loaded ${segments.length} word segments for Surah $surahId");
+      
+      return segments;
+    } catch (e) {
+      debugPrint("UnifiedAudioService: Error loading word segments: $e");
+      return [];
+    }
+  }
+
+  /// 🆕 WORD-LEVEL SYNC: Resolves the seek position for a specific word.
+  /// Used for tap-to-play on individual words.
+  Future<Duration?> resolveWordSeekPosition(int surahId, int ayahNumber, int wordIndex) async {
+    try {
+      final segments = await getWordSegments(surahId);
+      
+      // Find the matching word segment
+      final wordSegment = segments.firstWhere(
+        (seg) => seg.ayahNumber == ayahNumber && seg.wordIndex == wordIndex,
+        orElse: () => throw StateError('Word segment not found'),
+      );
+      
+      return Duration(milliseconds: wordSegment.timestampFrom);
+    } catch (e) {
+      debugPrint("UnifiedAudioService: Could not resolve word position: $e");
+      return null;
+    }
+  }
+
   Future<Duration?> resolveAyahSeekPosition(int surahId, int ayahNumber) async {
     // 🛑 BOUNDS CHECK: Prevent seeking to non-existent ayahs (e.g. Surah 110 Ayah 4)
     final int totalAyahs = quran.getVerseCount(surahId);

@@ -1,8 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:muslim_mind/models/quran_display_names.dart';
+import 'package:muslim_mind/models/surah_header_ligature.dart'; // NEW
 import 'package:muslim_mind/models/quran_surah.dart';
 import 'package:muslim_mind/services/quran_local_service.dart';
 import 'package:muslim_mind/screens/hadith_screen.dart';
@@ -731,12 +733,22 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
               ),
             ),
             // 3. Arabic Typography
-            Text(
-              surah.name,
-              style: GoogleFonts.amiri(
-                fontSize: 24,
-                color: AppColors.textPrimaryDark.withOpacity(0.2),
-                height: 1,
+            SizedBox(
+              height: 48, // Constrain height for the list item
+              width: 100, // Provide width for the long calligraphy
+              child: FittedBox(
+                alignment: Alignment.centerRight, // Align to right like text
+                fit: BoxFit.contain,
+                child: Text(
+                  getSurahLigatureCode(surah.id),
+                  style: TextStyle(
+                    fontFamily: 'QCF_SurahHeader',
+                    fontSize: 100, // Arbitrary large size for high quality scaling by FittedBox
+                    color: AppColors.textPrimaryDark.withOpacity(0.4), // Slightly bolder than 0.2
+                    height: 1.0, 
+                    fontFeatures: const [FontFeature.enable('liga')],
+                  ),
+                ),
               ),
             ),
           ],

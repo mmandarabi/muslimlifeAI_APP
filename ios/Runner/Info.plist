@@ -57,5 +57,10 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<!-- 🆕 PHASE 2.5: Enable background audio playback -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>audio</string>
+		</array>
 	</dict>
 </plist>

@@ -1,0 +1,90 @@
+#!/bin/sh
+set -e
+
+##
+# About
+# The following shell script creates PNG images
+# from the SVG images found in the root of the
+# repository. The images are especially useful on
+# social media, for example the /png/512x512/
+# images are optimized for the opengraph protocol
+# (see https://ogp.me/).
+#
+# Per-glyph settings
+# By default png/<size>/default.argv is applied to
+# an SVG before being converted to a PNG.
+# When png/<size>/<surahid>.argv exists, it takes
+# precedence over png/<size>/default.argv.
+
+##
+# variables
+size=""
+
+##
+# functions
+require()
+{
+    for i in $(seq 1 $#); do
+        eval "cmd=\$${i}"
+        if ! which "${cmd}" > /dev/null 2>&1; then
+            echo "error: ${cmd} was not found" > /dev/stderr
+            exit 1
+        fi
+    done
+}
+
+argv()
+{
+    path="png/${size}/${1}.argv"
+    if [ -e "${path}" ]; then
+        echo "${path}"
+    else
+        echo png/"${size}"/default.argv
+    fi
+}
+
+##
+# main
+require rsvg-convert
+case "${1}" in
+    "512x512")
+        size="512x512"
+        for svg in svg/[!0]*.svg; do
+            id=$(basename ${svg} .svg)
+            png="png/${size}/${id}.png"
+            args=$(argv ${id})
+            rsvg-convert "${svg}" \
+                --page-width=512 \
+                --page-height=512 \
+                --width=356 \
+                --height=256 \
+                --background-color=white \
+                --stylesheet png/"${size}"/default.css \
+                $(cat "${args}") \
+                -o "${png}"
+            echo "${png}"
+        done
+        ;;
+    "1500x500")
+        size="1500x500"
+        for svg in svg/[!0]*.svg; do
+            id=$(basename ${svg} .svg)
+            png="png/${size}/${id}.png"
+            args=$(argv ${id})
+            rsvg-convert "${svg}" \
+                --page-width=1500 \
+                --page-height=500 \
+                --width=750 \
+                --height=295 \
+                --background-color=white \
+                --stylesheet png/"${size}"/default.css \
+                $(cat "${args}") \
+                -o "${png}"
+            echo "${png}"
+        done
+        ;;
+    *)
+        echo "error: provide a valid size (eg: $0 512x512)" > /dev/stderr
+        exit 1
+        ;;
+esac

@@ -1,0 +1,56 @@
+<svg width="100%" height="100%" viewBox="0 0 800 160" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Ornamental Surah Header Frame - Empty Center</title>
+    <desc>A high-quality, vector Islamic ornamental frame designed for Quran apps, leaving the center empty for separate calligraphy layers.</desc>
+    <defs>
+        <linearGradient id="goldGradLinear" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop stop-color="#D4AF37" offset="0%"/> <stop stop-color="#C5A028" offset="50%"/>
+            <stop stop-color="#B38B1B" offset="100%"/> </linearGradient>
+        <radialGradient id="cornerGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+             <stop stop-color="#F7E290" offset="0%" stop-opacity="0.8"/>
+             <stop stop-color="#D4AF37" offset="100%" stop-opacity="0"/>
+        </radialGradient>
+
+        <g id="ornament-corner">
+             <path d="M40,8 C20,8 8,20 8,40 C8,55 15,65 25,75 L30,70 C22,62 16,52 16,40 C16,25 25,16 40,16 C52,16 62,22 70,30 L75,25 C65,15 55,8 40,8 Z" fill="url(#goldGradLinear)"/>
+            <circle cx="40" cy="40" r="5" fill="#8B6F3A"/>
+            <circle cx="25" cy="25" r="3" fill="#8B6F3A"/>
+            <circle cx="60" cy="60" r="3" fill="#8B6F3A"/>
+            <path d="M5,40 Q5,5 40,5" stroke="#8B6F3A" stroke-width="2" fill="none"/>
+        </g>
+
+        <pattern id="rail-pattern" x="0" y="0" width="50" height="20" patternUnits="userSpaceOnUse">
+             <path d="M0,10 Q12.5,0 25,10 T50,10" stroke="url(#goldGradLinear)" stroke-width="3" fill="none"/>
+             <circle cx="25" cy="10" r="3" fill="#8B6F3A"/>
+        </pattern>
+    </defs>
+
+    <g fill="url(#goldGradLinear)" stroke="#8B6F3A" stroke-width="1">
+        <rect x="80" y="20" width="640" height="10" fill="url(#goldGradLinear)" opacity="0.8"/>
+        <rect x="80" y="15" width="640" height="20" fill="url(#rail-pattern)" stroke="none"/>
+        <line x1="80" y1="15" x2="720" y2="15" stroke="#8B6F3A" stroke-width="2"/>
+        <line x1="80" y1="35" x2="720" y2="35" stroke="#8B6F3A" stroke-width="2"/>
+
+        <rect x="80" y="130" width="640" height="10" fill="url(#goldGradLinear)" opacity="0.8"/>
+        <rect x="80" y="125" width="640" height="20" fill="url(#rail-pattern)" stroke="none"/>
+        <line x1="80" y1="125" x2="720" y2="125" stroke="#8B6F3A" stroke-width="2"/>
+        <line x1="80" y1="145" x2="720" y2="145" stroke="#8B6F3A" stroke-width="2"/>
+
+        <rect x="20" y="80" width="10" height="0.1" fill="url(#goldGradLinear)"/> <rect x="770" y="80" width="10" height="0.1" fill="url(#goldGradLinear)"/>
+
+    </g>
+
+    <use xlink:href="#ornament-corner" x="0" y="0"/>
+    <use xlink:href="#ornament-corner" x="0" y="0" transform="translate(800, 0) scale(-1, 1)"/>
+    <use xlink:href="#ornament-corner" x="0" y="0" transform="translate(0, 160) scale(1, -1)"/>
+    <use xlink:href="#ornament-corner" x="0" y="0" transform="translate(800, 160) scale(-1, -1)"/>
+
+    <g transform="translate(0, 80)">
+        <path d="M15,0 C15,-15 5,-25 0,-30 L0,30 C5,25 15,15 15,0 Z" fill="url(#goldGradLinear)" stroke="#8B6F3A"/>
+        <circle cx="8" cy="0" r="4" fill="#F7E290"/>
+    </g>
+    <g transform="translate(800, 80) scale(-1, 1)">
+        <path d="M15,0 C15,-15 5,-25 0,-30 L0,30 C5,25 15,15 15,0 Z" fill="url(#goldGradLinear)" stroke="#8B6F3A"/>
+        <circle cx="8" cy="0" r="4" fill="#F7E290"/>
+    </g>
+
+    </svg>
