@@ -44,7 +44,7 @@ class _LandingPageState extends State<LandingPage> {
                     ),
               ),
               const SizedBox(height: 16),
-              _buildBulletPoint("AI-Powered spiritual guidance tailored to you."),
+              _buildBulletPoint("Personalized spiritual guidance tailored to you."),
               _buildBulletPoint("Privacy-first design with on-device processing."),
               _buildBulletPoint("Verified sources from Quran and Sunnah."),
               const SizedBox(height: 24),
@@ -227,7 +227,7 @@ class _LandingPageState extends State<LandingPage> {
                           ),
                           const SizedBox(height: 48),
                           Text(
-                            "MuslimMind connects you with authenticated Islamic knowledge through a privacy-focused, AI-driven interface. Whether you are looking for accurate prayer times, Qibla direction, or a deeper understanding of the Quran, our platform adapts to your spiritual needs without compromising your data.",
+                            "MuslimMind connects you with authenticated Islamic knowledge through a privacy-focused, intelligent interface. Whether you are looking for accurate prayer times, Qibla direction, or a deeper understanding of the Quran, our platform adapts to your spiritual needs without compromising your data.",
                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                   fontSize: 18,
                                   height: 1.6,

@@ -22,7 +22,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<Map<String, String>> _messages = [
     {
       "role": "assistant", 
-      "text": "I am Noor, your AI assistant. How can I help you today?"
+      "text": "I am Noor, your companion. How can I help you today?"
     }
   ];
 
@@ -110,7 +110,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   // Center: Title
                   Center(
                     child: Text(
-                      "Noor AI",
+                      "Noor",
                       style: GoogleFonts.outfit(
                          fontSize: 20,
                          fontWeight: FontWeight.bold,
