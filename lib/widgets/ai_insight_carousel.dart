@@ -218,7 +218,7 @@ class AIInsightCard extends StatelessWidget {
                         color: AppColors.primary, size: 18),
                     const SizedBox(width: 8),
                     Text(
-                      "AI INSIGHT",
+                      "INSIGHT",
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: AppColors.primary,
                             letterSpacing: 1.5,
